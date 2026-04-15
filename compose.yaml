@@ -1,7 +1,18 @@
 services:
-  app:
+  frontend:
     build:
-      context: ./app
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "8081:80"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     depends_on:
       db:
         condition: service_healthy
@@ -10,7 +21,7 @@ services:
       APP_SECRET: demo-secret
       DATABASE_URL: mysql://qr_user:qr_password@db:3306/qr_incheck?serverVersion=8.0.36&charset=utf8mb4
     ports:
-      - "8081:80"
+      - "8082:80"
 
   db:
     image: mysql:8.0

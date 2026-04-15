@@ -8,7 +8,7 @@ describe('QrIncheckApp', () => {
     vi.restoreAllMocks();
   });
 
-  it('shows success feedback after a successful scan', async () => {
+  it('shows a clock result after using the badge action', async () => {
     vi.stubGlobal(
       'fetch',
       vi
@@ -17,6 +17,7 @@ describe('QrIncheckApp', () => {
           ok: true,
           json: async () => ({
             action: 'checked_in',
+            timestamp: '2026-04-15 21:45:00 UTC',
             employee: {
               id: 1,
               name: 'Alice'
@@ -38,19 +39,30 @@ describe('QrIncheckApp', () => {
         })
     );
 
-    render(<QrIncheckApp initialEmployees={[]} />);
+    render(
+      <QrIncheckApp
+        initialEmployees={[
+          {
+            id: 1,
+            name: 'Alice',
+            qrCode: 'ALICE-DEMO-001',
+            status: 'checked_out',
+            statusLabel: 'Uitgecheckt',
+            lastActionAt: null
+          }
+        ]}
+      />
+    );
 
-    fireEvent.change(screen.getByLabelText('QR-code'), {
-      target: { value: 'ALICE-DEMO-001' }
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Verwerk scan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Klok met mijn badge' }));
 
     await waitFor(() =>
-      expect(screen.getByText('Alice is ingecheckt.')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Ingeklokt' })).toBeInTheDocument()
     );
+    expect(screen.getByText('Alice')).toBeInTheDocument();
   });
 
-  it('refreshes the employee list after regenerating a QR code', async () => {
+  it('refreshes the team overview after regenerating a badge', async () => {
     vi.stubGlobal(
       'fetch',
       vi
@@ -95,7 +107,8 @@ describe('QrIncheckApp', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Nieuwe QR' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Teamoverzicht' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nieuwe badge' }));
 
     await waitFor(() => expect(screen.getByText('NEW-BOB-CODE')).toBeInTheDocument());
   });

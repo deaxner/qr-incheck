@@ -6,11 +6,9 @@ import './styles/app.css';
 const rootElement = document.getElementById('app');
 
 if (rootElement) {
-  const initialEmployees = JSON.parse(rootElement.dataset.initialEmployees ?? '[]');
-
   createRoot(rootElement).render(
     <React.StrictMode>
-      <QrIncheckApp initialEmployees={initialEmployees} />
+      <QrIncheckApp initialEmployees={[]} />
     </React.StrictMode>
   );
 }

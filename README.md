@@ -3,30 +3,47 @@
 Compacte demo voor QR-gebaseerde check-in en check-out met `Symfony`, `React`, `MySQL` en `Docker`.
 
 ## Wat het laat zien
-- Een werkende verticale slice: scan, valideren, registreren, terugkoppelen
+- Een werkende verticale slice: badge tonen, klokken, registreren, terugkoppelen
 - Domeinlogica op de backend als bron van waarheid
-- Kleine beheerflow voor QR-regeneratie
-- Gerichte tests op business rules en kritieke API/front-end flow
+- Kleine beheerflow voor badgevernieuwing
+- Gerichte tests op business rules en kritieke API/frontend-flow
+
+## Structuur
+- `backend/`: Symfony-app, domeinlogica, API, migrations, tests, templates
+- `frontend/`: React/Vite-app voor badge, historie en teamoverzicht
+- `compose.yaml`: lokale Docker-runtime voor frontend + backend + MySQL
 
 ## Lokale run
+Eerste terminal:
+
 ```bash
-cd app
+cd backend
 composer install
-npm install
-npm run build
 php bin/console doctrine:migrations:migrate --no-interaction
-php bin/console doctrine:fixtures:load --no-interaction
+php bin/console doctrine:fixtures:load --append --no-interaction
 symfony server:start
 ```
 
-Of via Docker:
+Tweede terminal:
+
 ```bash
-docker compose up --build
-docker compose exec app php bin/console doctrine:migrations:migrate --no-interaction
-docker compose exec app php bin/console doctrine:fixtures:load --append --no-interaction
+cd frontend
+npm install
+npm run build
 ```
 
-Open daarna `http://localhost:8000` lokaal of `http://localhost:8081` via Docker.
+Open daarna `http://localhost:8000`.
+
+## Docker run
+```bash
+docker compose up --build
+docker compose exec backend php bin/console doctrine:migrations:migrate --no-interaction
+docker compose exec backend php bin/console doctrine:fixtures:load --append --no-interaction
+```
+
+Open daarna:
+- frontend: `http://localhost:8081`
+- backend API: `http://localhost:8082`
 
 ## Demo-codes
 - `ALICE-DEMO-001`
@@ -35,7 +52,7 @@ Open daarna `http://localhost:8000` lokaal of `http://localhost:8081` via Docker
 
 ## Bewuste keuzes
 - Scanflow is handmatige code-invoer in plaats van live camera-scanning
-- MySQL voor runtime, SQLite voor snelle en geïsoleerde tests
+- MySQL voor runtime, SQLite voor snelle en geisoleerde tests
 - Redis is bewust niet gebouwd in v1
 
 ## Buiten scope
