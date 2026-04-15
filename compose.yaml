@@ -1,0 +1,31 @@
+services:
+  app:
+    build:
+      context: ./app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: dev
+      APP_SECRET: demo-secret
+      DATABASE_URL: mysql://qr_user:qr_password@db:3306/qr_incheck?serverVersion=8.0.36&charset=utf8mb4
+    ports:
+      - "8081:80"
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: qr_incheck
+      MYSQL_PASSWORD: qr_password
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: qr_user
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      retries: 20
+      timeout: 5s
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
