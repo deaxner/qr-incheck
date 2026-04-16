@@ -23,7 +23,7 @@ class ScanService
         $this->timezone = new \DateTimeZone($appTimezone);
     }
 
-    public function process(string $rawCode): ScanResult
+    public function process(string $rawCode, ?int $allowedEmployeeId = null): ScanResult
     {
         $code = strtoupper(trim($rawCode));
 
@@ -35,6 +35,10 @@ class ScanService
 
         if (!$employee) {
             throw new UnknownQrCodeException();
+        }
+
+        if (null !== $allowedEmployeeId && $employee->getId() !== $allowedEmployeeId) {
+            throw new \RuntimeException('forbidden');
         }
 
         $now = new \DateTimeImmutable('now', $this->timezone);

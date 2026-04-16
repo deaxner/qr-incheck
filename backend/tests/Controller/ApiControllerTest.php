@@ -82,6 +82,62 @@ class ApiControllerTest extends WebTestCase
         self::assertSame('North Lobby', $payload['employee']['profile']['location']);
     }
 
+    public function testEmployeeUserOnlySeesOwnOverviewEntry(): void
+    {
+        $this->createEmployee('Alice Janssen', 'ALICE-DEMO-001');
+        $this->createEmployee('Bob de Vries', 'BOB-DEMO-002', 'Operations', 'Shift-based', 'North Lobby');
+        self::ensureKernelShutdown();
+        $client = $this->createAuthenticatedClient('alice@timesignal.demo', 'User123!');
+
+        $client->request('GET', '/api/employees');
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertCount(1, $payload);
+        self::assertSame('Alice Janssen', $payload[0]['name']);
+    }
+
+    public function testEmployeeUserCannotViewAnotherEmployeesHistory(): void
+    {
+        $this->createEmployee('Alice Janssen', 'ALICE-DEMO-001');
+        $bob = $this->createEmployee('Bob de Vries', 'BOB-DEMO-002', 'Operations', 'Shift-based', 'North Lobby');
+        self::ensureKernelShutdown();
+        $client = $this->createAuthenticatedClient('alice@timesignal.demo', 'User123!');
+
+        $client->request('GET', sprintf('/api/employees/%d/history', $bob->getId()));
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('forbidden', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+    }
+
+    public function testEmployeeUserCannotRegenerateBadge(): void
+    {
+        $this->createEmployee('Alice Janssen', 'ALICE-DEMO-001');
+        $bob = $this->createEmployee('Bob de Vries', 'BOB-DEMO-002', 'Operations', 'Shift-based', 'North Lobby');
+        self::ensureKernelShutdown();
+        $client = $this->createAuthenticatedClient('alice@timesignal.demo', 'User123!');
+
+        $client->request('POST', sprintf('/api/employees/%d/regenerate-qr', $bob->getId()));
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('forbidden', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+    }
+
+    public function testEmployeeUserCannotScanAnotherEmployeesBadge(): void
+    {
+        $this->createEmployee('Alice Janssen', 'ALICE-DEMO-001');
+        $this->createEmployee('Bob de Vries', 'BOB-DEMO-002', 'Operations', 'Shift-based', 'North Lobby');
+        self::ensureKernelShutdown();
+        $client = $this->createAuthenticatedClient('alice@timesignal.demo', 'User123!');
+
+        $client->request('POST', '/api/scan', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
+            'code' => 'BOB-DEMO-002',
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('forbidden', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+    }
+
     public function testScanEndpointHandlesCheckInAndCheckOut(): void
     {
         $this->createEmployee('Alice', 'ALICE-DEMO-001');
@@ -162,13 +218,16 @@ class ApiControllerTest extends WebTestCase
         return $employee;
     }
 
-    private function createAuthenticatedClient(): object
+    private function createAuthenticatedClient(
+        string $email = 'bob.admin@timesignal.demo',
+        string $password = 'Admin123!',
+    ): object
     {
         $client = static::createClient();
 
         $client->request('POST', '/api/auth/login', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
-            'email' => 'bob.admin@timesignal.demo',
-            'password' => 'Admin123!',
+            'email' => $email,
+            'password' => $password,
         ], JSON_THROW_ON_ERROR));
 
         self::assertResponseIsSuccessful();

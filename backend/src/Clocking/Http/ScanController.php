@@ -2,6 +2,7 @@
 
 namespace App\Clocking\Http;
 
+use App\Auth\Application\AuthContext;
 use App\Clocking\Application\ScanService;
 use App\Clocking\Exception\UnknownQrCodeException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -12,8 +13,9 @@ use Symfony\Component\Routing\Attribute\Route;
 class ScanController extends AbstractController
 {
     #[Route('/api/scan', name: 'api_scan', methods: ['POST'])]
-    public function __invoke(Request $request, ScanService $scanService): JsonResponse
+    public function __invoke(Request $request, ScanService $scanService, AuthContext $authContext): JsonResponse
     {
+        $user = $authContext->requireUser($request);
         $payload = json_decode($request->getContent(), true);
         $code = is_array($payload) ? ($payload['code'] ?? '') : '';
 
@@ -25,12 +27,21 @@ class ScanController extends AbstractController
         }
 
         try {
-            $result = $scanService->process($code);
+            $result = $scanService->process($code, $user->isAdmin() ? null : $user->employeeId);
         } catch (UnknownQrCodeException $exception) {
             return $this->json([
                 'code' => 'unknown_qr_code',
                 'message' => $exception->getMessage(),
             ], 404);
+        } catch (\RuntimeException $exception) {
+            if ('forbidden' !== $exception->getMessage()) {
+                throw $exception;
+            }
+
+            return $this->json([
+                'code' => 'forbidden',
+                'message' => 'Je mag alleen je eigen badge gebruiken.',
+            ], 403);
         }
 
         return $this->json([
