@@ -25,7 +25,7 @@ class ApiControllerTest extends WebTestCase
     {
         $this->createEmployee('Alice', 'ALICE-DEMO-001');
         self::ensureKernelShutdown();
-        $client = static::createClient();
+        $client = $this->createAuthenticatedClient();
 
         $client->request('POST', '/api/scan', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
             'code' => 'ALICE-DEMO-001',
@@ -45,7 +45,7 @@ class ApiControllerTest extends WebTestCase
     public function testScanEndpointReturnsExpectedErrorForUnknownCode(): void
     {
         self::ensureKernelShutdown();
-        $client = static::createClient();
+        $client = $this->createAuthenticatedClient();
 
         $client->request('POST', '/api/scan', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
             'code' => 'UNKNOWN-CODE',
@@ -59,7 +59,7 @@ class ApiControllerTest extends WebTestCase
     {
         $employee = $this->createEmployee('Bob', 'BOB-DEMO-002');
         self::ensureKernelShutdown();
-        $client = static::createClient();
+        $client = $this->createAuthenticatedClient();
 
         $client->request('POST', sprintf('/api/employees/%d/regenerate-qr', $employee->getId()));
 
@@ -71,7 +71,7 @@ class ApiControllerTest extends WebTestCase
     {
         $employee = $this->createEmployee('Alice', 'ALICE-DEMO-001');
         self::ensureKernelShutdown();
-        $client = static::createClient();
+        $client = $this->createAuthenticatedClient();
 
         $client->request('POST', '/api/scan', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
             'code' => 'ALICE-DEMO-001',
@@ -93,5 +93,22 @@ class ApiControllerTest extends WebTestCase
         $this->entityManager->flush();
 
         return $employee;
+    }
+
+    private function createAuthenticatedClient(): object
+    {
+        $client = static::createClient();
+
+        $client->request('POST', '/api/auth/login', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
+            'email' => 'bob.admin@timesignal.demo',
+            'password' => 'Admin123!',
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseIsSuccessful();
+
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        $client->setServerParameter('HTTP_AUTHORIZATION', sprintf('Bearer %s', $payload['token']));
+
+        return $client;
     }
 }

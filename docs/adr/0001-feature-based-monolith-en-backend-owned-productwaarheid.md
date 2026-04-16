@@ -5,14 +5,14 @@
 
 ## Context
 
-Deze repository is bewust opgezet als compacte verticale slice voor een QR check-in/check-out product. De scope is klein, maar de demo moet wel geloofwaardig zijn:
+Deze repository is bewust opgezet als compacte demo-opdracht rond een QR check-in/check-out product. De scope is klein en tijdgebonden, maar de uitwerking moet wel geloofwaardig zijn:
 
 - badge tonen
 - klokmoment registreren
 - historie tonen
 - teamstatus beheren
 
-De belangrijkste spanning in deze demo zit niet in schaal, maar in geloofwaardigheid. Een snelle demo kan technisch werken en tegelijk een verkeerd architectuursignaal geven, bijvoorbeeld:
+De belangrijkste spanning in deze opdracht zit niet in schaal, maar in geloofwaardigheid. Een demo kan technisch werken en tegelijk een verkeerd architectuursignaal geven, bijvoorbeeld:
 
 - frontend die businessdata verzint of lokaal reconstrueert
 - codebase die alleen op technische lagen is ingedeeld en daardoor feature ownership verbergt
@@ -38,11 +38,11 @@ Concreet betekent dat:
 
 ## Waarom deze keuze
 
-Deze keuze past het best bij de huidige fase en doelstelling van de applicatie.
+Deze keuze past het best bij het karakter van deze demo-opdracht: beperkte tijd, beperkte scope en wel de verwachting dat keuzes uitlegbaar en verdedigbaar zijn.
 
 1. Een monolith is hier sneller en eerlijker dan vroeg opsplitsen
 
-De applicatie heeft een kleine scope en een beperkt aantal use-cases. Een modulaire monolith houdt deployment, debugging, transacties en lokale ontwikkeling eenvoudig. Dat is in deze fase waardevoller dan distributievoordelen die nog niet nodig zijn.
+De applicatie heeft een kleine scope en een beperkt aantal use-cases. Een modulaire monolith houdt deployment, debugging, transacties en lokale ontwikkeling eenvoudig. Voor een demo-opdracht is dat waardevoller dan distributievoordelen die nog niet nodig zijn.
 
 2. Feature-based structuur maakt ownership zichtbaar
 
@@ -78,7 +78,7 @@ Nadelen:
 - wijzigingen aan een enkele use-case raken sneller meerdere generieke mappen
 - de code leest meer als framework-inrichting dan als productmodel
 
-Niet gekozen omdat deze demo juist moet laten zien dat functionele grenzen bewust zijn gekozen.
+Niet gekozen omdat deze demo-opdracht juist moet laten zien dat functionele grenzen bewust zijn gekozen.
 
 ### 2. Frontend die read models en afgeleide productdata zelf opbouwt
 
@@ -93,7 +93,7 @@ Nadelen:
 - businesssemantiek lekt naar de frontend
 - demo wordt visueel overtuigend maar inhoudelijk minder betrouwbaar
 
-Niet gekozen omdat dit botst met het doel om productwaarheid zichtbaar te maken.
+Niet gekozen omdat dit botst met het doel om in een demo eerlijke productwaarheid zichtbaar te maken.
 
 ### 3. Microservices of aparte services per domein
 
@@ -108,7 +108,7 @@ Nadelen:
 - extra contract- en integratielast
 - disproportioneel voor de huidige scope
 
-Niet gekozen omdat de complexiteit niet in verhouding staat tot het probleem.
+Niet gekozen omdat de complexiteit niet in verhouding staat tot de opdracht en de beperkte scope.
 
 ## Consequenties
 
@@ -150,7 +150,7 @@ Voorbeelden die dit besluit ondersteunen:
 
 ## Herzien wanneer
 
-We herzien dit besluit wanneer een of meer van deze signalen optreden:
+Ik zou dit besluit herzien wanneer een of meer van deze signalen optreden:
 
 - meerdere onafhankelijke deployment-cycli worden nodig
 - frontend en backend krijgen verschillende teams met duidelijke contract-eigenaars

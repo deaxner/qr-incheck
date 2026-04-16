@@ -1,8 +1,8 @@
 # QR-Incheck
 
-Compacte demo voor QR-gebaseerde check-in en check-out met `Symfony`, `React`, `MySQL` en `Docker`.
+Compacte demo-opdracht voor QR-gebaseerde check-in en check-out met `Symfony`, `React`, `MySQL` en `Docker`.
 
-Het doel van deze repo is niet om een volledige workforce-oplossing neer te zetten, maar om in korte tijd een geloofwaardige verticale slice te laten zien: badge tonen, klokken, historie tonen en teamstatus beheren.
+Het doel van deze repo is nadrukkelijk niet om een volledige workforce-oplossing neer te zetten. Dit is een afgebakende demo-opdracht waarin ik in beperkte tijd wilde laten zien hoe ik een geloofwaardige verticale slice opzet, keuzes onderbouw en scope bewust klein houd: badge tonen, klokken, historie tonen en teamstatus beheren.
 
 ## Wat deze demo laat zien
 - Werkende end-to-end check-in/check-out flow
@@ -12,13 +12,13 @@ Het doel van deze repo is niet om een volledige workforce-oplossing neer te zett
 
 
 ## Architectuurkeuzes
-Ik heb deze demo bewust als modulaire monolith gebouwd. De backend en frontend draaien los van elkaar, maar vormen samen nog steeds een compacte applicatie die je lokaal eenvoudig kunt starten, debuggen en uitleggen. Voor deze scope is dat een betere keuze dan te vroeg nadenken in services, queues of andere extra infrastructuur.
+Omdat dit een demo-opdracht is, heb ik bewust gekozen voor een modulaire monolith. De backend en frontend draaien los van elkaar, maar vormen samen nog steeds een compacte applicatie die je lokaal eenvoudig kunt starten, debuggen en uitleggen. Voor een opdracht als deze is dat een betere keuze dan te vroeg nadenken in services, queues of andere extra infrastructuur.
 
-De structuur is feature-first opgezet. In de backend zie je dat terug in domeinen als `Clocking` en `Employees`; in de frontend in `app`, `modules` en `shared`. Daardoor blijft snel zichtbaar waar gedrag hoort, in plaats van dat alles verspreid raakt over algemene mappen als controllers, services en helpers.
+De structuur is feature-first opgezet. In de backend zie je dat terug in domeinen als `Clocking` en `Employees`; in de frontend in `app`, `modules` en `shared`. Dat helpt juist in een demo-context: je ziet snel waar gedrag hoort en welke onderdelen samen een use-case vormen, in plaats van dat alles verspreid raakt over algemene mappen als controllers, services en helpers.
 
-Een tweede bewuste keuze is dat de backend eigenaar is van de productwaarheid. Status, historie, weektotalen en badgegegevens komen uit de API en worden niet door de frontend bij elkaar bedacht. Dat maakt de demo misschien iets minder "snelle mock", maar wel veel eerlijker: wat je in de UI ziet, is gebaseerd op echte applicatielogica.
+Een tweede bewuste keuze is dat de backend eigenaar is van de productwaarheid. Status, historie, weektotalen en badgegegevens komen uit de API en worden niet door de frontend bij elkaar bedacht. Dat maakt de demo misschien iets minder een snelle mock, maar wel veel eerlijker: wat je in de UI ziet, is gebaseerd op echte applicatielogica in plaats van op slim geassembleerde placeholder-data.
 
-Ik heb verder vooral conventionele technologie gekozen waar dat helpt: `Symfony` en `Doctrine` voor de API, `React` en `Vite` voor de UI, en `Docker` voor een consistente lokale runtime. Daarmee gaat de aandacht naar de flow en de afwegingen, niet naar onnodige framework-complexiteit.
+Ik heb verder vooral conventionele technologie gekozen waar dat helpt: `Symfony` en `Doctrine` voor de API, `React` en `Vite` voor de UI, en `Docker` voor een consistente lokale runtime. In een demo-opdracht wil ik namelijk vooral laten zien hoe ik denk, structureer en afweeg, niet hoeveel extra infrastructuur ik kan optuigen.
 
 ## Structuur
 - `backend/`
