@@ -5,6 +5,7 @@ export function BadgeView({
   currentEmployee,
   employees,
   isSubmitting,
+  isRestricted = false,
   onClock,
   onEmployeeChange,
 }) {
@@ -24,29 +25,37 @@ export function BadgeView({
             </div>
             <div className="badge-heading">
               <div>
-                <h2>Mijn badge</h2>
-                <p className="panel-copy">Toon je badge of registreer direct een klokmoment vanaf dit scherm.</p>
+                <h2>{isRestricted ? 'Mijn status' : 'Mijn badge'}</h2>
+                <p className="panel-copy">
+                  {isRestricted
+                    ? 'Bekijk of je momenteel bent ingecheckt of uitgecheckt en klok direct vanaf dit scherm.'
+                    : 'Toon je badge of registreer direct een klokmoment vanaf dit scherm.'}
+                </p>
               </div>
             </div>
           </div>
-          <select
-            className="employee-switcher"
-            aria-label="Actieve medewerker"
-            value={currentEmployee.id}
-            onChange={(event) => onEmployeeChange(Number(event.target.value))}
-          >
-            {employees.map((employee) => (
-              <option key={employee.id} value={employee.id}>
-                {employee.name}
-              </option>
-            ))}
-          </select>
+          {!isRestricted ? (
+            <select
+              className="employee-switcher"
+              aria-label="Actieve medewerker"
+              value={currentEmployee.id}
+              onChange={(event) => onEmployeeChange(Number(event.target.value))}
+            >
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
         </div>
 
-        <div className="badge-identity">
-          <span className="badge-identity-label">Medewerker-ID</span>
-          <strong>{currentEmployee.employeeCode}</strong>
-        </div>
+        {!isRestricted ? (
+          <div className="badge-identity">
+            <span className="badge-identity-label">Medewerker-ID</span>
+            <strong>{currentEmployee.employeeCode}</strong>
+          </div>
+        ) : null}
 
         <button
           type="button"
@@ -76,24 +85,32 @@ export function BadgeView({
           >
             {isSubmitting ? 'Bezig...' : 'Klok met mijn badge'}
           </button>
-          <p className="badge-helper">Gebruik de badge hierboven of de knop om direct in of uit te klokken.</p>
+          <p className="badge-helper">
+            {isRestricted
+              ? 'Je ziet hier alleen je huidige status en kunt direct in- of uitklokken.'
+              : 'Gebruik de badge hierboven of de knop om direct in of uit te klokken.'}
+          </p>
         </div>
 
         <div className="detail-grid">
-          <article className="detail-card">
-            <p className="detail-label">Afdeling</p>
-            <p className="detail-value">{profile.department}</p>
-          </article>
-          <article className="detail-card">
-            <p className="detail-label">Dienstverband</p>
-            <p className="detail-value">{profile.employmentType}</p>
-          </article>
+          {!isRestricted ? (
+            <>
+              <article className="detail-card">
+                <p className="detail-label">Afdeling</p>
+                <p className="detail-value">{profile.department}</p>
+              </article>
+              <article className="detail-card">
+                <p className="detail-label">Dienstverband</p>
+                <p className="detail-value">{profile.employmentType}</p>
+              </article>
+            </>
+          ) : null}
           <article className="detail-card detail-card-wide">
             <p className="detail-label">Badge status</p>
             <p className="detail-value">
               {currentEmployee.status === 'checked_in'
                 ? `Actief sinds ${currentEmployee.lastActionTime ?? '--:--'}`
-                : 'Badge actief en klaar voor gebruik'}
+                : 'Uitgecheckt'}
             </p>
           </article>
         </div>

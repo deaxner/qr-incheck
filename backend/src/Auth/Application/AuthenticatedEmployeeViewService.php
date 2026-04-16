@@ -3,14 +3,12 @@
 namespace App\Auth\Application;
 
 use App\Auth\Domain\AuthUser;
-use App\Employees\Application\EmployeeOverviewService;
 use App\Repository\EmployeeRepository;
 
 class AuthenticatedEmployeeViewService
 {
     public function __construct(
         private readonly EmployeeRepository $employeeRepository,
-        private readonly EmployeeOverviewService $employeeOverviewService,
     ) {
     }
 
@@ -29,7 +27,16 @@ class AuthenticatedEmployeeViewService
                 'role' => $user->role,
                 'employeeId' => $user->employeeId,
             ],
-            'employee' => $employee ? $this->employeeOverviewService->getEmployeeOverview($employee) : null,
+            'employee' => $employee ? [
+                'id' => $employee->getId(),
+                'name' => $employee->getName(),
+                'qrCode' => $employee->getQrCode(),
+                'profile' => [
+                    'department' => $employee->getDepartment(),
+                    'employmentType' => $employee->getEmploymentType(),
+                    'location' => $employee->getLocation(),
+                ],
+            ] : null,
         ];
     }
 }

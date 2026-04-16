@@ -14,11 +14,15 @@ RUN apt-get update \
 
 COPY backend/docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
 COPY backend/docker/php-timezone.ini /usr/local/etc/php/conf.d/zz-timezone.ini
+COPY backend/docker/entrypoint.sh /usr/local/bin/app-entrypoint
 COPY backend/ .
 COPY --from=composer_deps /app/vendor ./vendor
 
 RUN php bin/console cache:clear
 
-RUN chown -R www-data:www-data /var/www/html/var
+RUN chmod +x /usr/local/bin/app-entrypoint \
+    && chown -R www-data:www-data /var/www/html/var
 
 EXPOSE 80
+
+ENTRYPOINT ["app-entrypoint"]
