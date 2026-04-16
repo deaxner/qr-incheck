@@ -4,6 +4,40 @@ Compacte demo-opdracht voor QR-gebaseerde check-in en check-out met `Symfony`, `
 
 Het doel van deze repo is nadrukkelijk niet om een volledige workforce-oplossing neer te zetten. Dit is een afgebakende demo-opdracht waarin ik in beperkte tijd wilde laten zien hoe ik een geloofwaardige verticale slice opzet, keuzes onderbouw en scope bewust klein houd: badge tonen, klokken, historie tonen en teamstatus beheren.
 
+## Waarom de `.env` bewust is geëxposed
+
+In dit demo project is de `.env` bewust zichtbaar gemaakt om de nadruk te leggen op functionaliteit, reproduceerbaarheid en transparantie, in plaats van productiebeveiliging.
+
+### Doel
+
+- **Snelle reproduceerbaarheid**
+  - Het project kan direct worden gedraaid zonder extra configuratie
+  - Geen afhankelijkheid van handmatig ingestelde environment variables
+
+- **Focus op kernfunctionaliteit**
+  - Werkende end-to-end check-in/check-out flow
+  - Backend als bron van waarheid voor businessregels en productdata
+  - Kleine beheerflow voor badge-rotatie
+
+- **Transparantie**
+  - Inzicht in hoe services met elkaar communiceren
+  - Duidelijke configuratie van API’s en afhankelijkheden
+  - Begrijpbare dataflow tussen frontend en backend
+
+- **Ondersteuning van testen**
+  - Gerichte tests op kernlogica
+  - Validatie van kritieke UI/API flows zonder extra setup
+
+### Belangrijke nuance
+
+De `.env` bevat uitsluitend dummy- of testgegevens en vormt geen securityrisico.
+
+In een productieomgeving zouden environment variables **nooit** in de repository staan, maar veilig worden beheerd via bijvoorbeeld:
+- CI/CD secrets
+- Secret management tools (zoals vaults)
+- Server-side configuratie
+
+
 ## Wat deze demo laat zien
 - Werkende end-to-end check-in/check-out flow
 - Backend als bron van waarheid voor businessregels en productdata
