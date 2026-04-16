@@ -12,14 +12,13 @@ Het doel van deze repo is niet om een volledige workforce-oplossing neer te zett
 
 
 ## Architectuurkeuzes
-- **Feature-based structuur**
-  Backend is opgesplitst in `Clocking` en `Employees`. Frontend is opgesplitst in `app`, `modules` en `shared`.
-- **Backend-owned productdata**
-  Profielinformatie, historie, weektotalen en actieve sessie komen uit de API. De frontend verzint deze data niet.
-- **Pragmatische verticale slice**
-  Eerst de kernflow, daarna scherpere boundaries en eerlijkere contracts.
-- **Conventioneel waar dat helpt**
-  Symfony + Doctrine op de backend, React + Vite op de frontend, Docker voor lokale runtime.
+Ik heb deze demo bewust als modulaire monolith gebouwd. De backend en frontend draaien los van elkaar, maar vormen samen nog steeds een compacte applicatie die je lokaal eenvoudig kunt starten, debuggen en uitleggen. Voor deze scope is dat een betere keuze dan te vroeg nadenken in services, queues of andere extra infrastructuur.
+
+De structuur is feature-first opgezet. In de backend zie je dat terug in domeinen als `Clocking` en `Employees`; in de frontend in `app`, `modules` en `shared`. Daardoor blijft snel zichtbaar waar gedrag hoort, in plaats van dat alles verspreid raakt over algemene mappen als controllers, services en helpers.
+
+Een tweede bewuste keuze is dat de backend eigenaar is van de productwaarheid. Status, historie, weektotalen en badgegegevens komen uit de API en worden niet door de frontend bij elkaar bedacht. Dat maakt de demo misschien iets minder "snelle mock", maar wel veel eerlijker: wat je in de UI ziet, is gebaseerd op echte applicatielogica.
+
+Ik heb verder vooral conventionele technologie gekozen waar dat helpt: `Symfony` en `Doctrine` voor de API, `React` en `Vite` voor de UI, en `Docker` voor een consistente lokale runtime. Daarmee gaat de aandacht naar de flow en de afwegingen, niet naar onnodige framework-complexiteit.
 
 ## Structuur
 - `backend/`
