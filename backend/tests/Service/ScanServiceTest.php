@@ -4,7 +4,7 @@ namespace App\Tests\Service;
 
 use App\Entity\Employee;
 use App\Repository\TimeEntryRepository;
-use App\Service\ScanService;
+use App\Clocking\Application\ScanService;
 use App\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -66,7 +66,7 @@ class ScanServiceTest extends KernelTestCase
 
     private function createEmployee(string $name, string $qrCode): Employee
     {
-        $employee = new Employee($name, $qrCode);
+        $employee = new Employee($name, $qrCode, 'Operations', 'Full-time', 'HQ');
         $this->entityManager->persist($employee);
         $this->entityManager->flush();
 

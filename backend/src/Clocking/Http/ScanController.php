@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Controller\Api;
+namespace App\Clocking\Http;
 
-use App\Exception\UnknownQrCodeException;
-use App\Service\ScanService;
+use App\Clocking\Application\ScanService;
+use App\Clocking\Exception\UnknownQrCodeException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -40,6 +40,11 @@ class ScanController extends AbstractController
                 'id' => $result->employee->getId(),
                 'name' => $result->employee->getName(),
                 'qrCode' => $result->employee->getQrCode(),
+                'profile' => [
+                    'department' => $result->employee->getDepartment(),
+                    'employmentType' => $result->employee->getEmploymentType(),
+                    'location' => $result->employee->getLocation(),
+                ],
             ],
         ]);
     }

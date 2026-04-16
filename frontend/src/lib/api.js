@@ -14,6 +14,12 @@ export async function fetchEmployees() {
   return parseResponse(response);
 }
 
+export async function fetchEmployeeHistory(employeeId) {
+  const response = await fetch(`/api/employees/${employeeId}/history`);
+
+  return parseResponse(response);
+}
+
 export async function submitScan(code) {
   const response = await fetch('/api/scan', {
     body: JSON.stringify({ code }),

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Dto;
+namespace App\Clocking\Dto;
 
 use App\Entity\Employee;
 

@@ -1,0 +1,120 @@
+.result-panel {
+  background: var(--surface);
+  border-color: #cfdcf7;
+  justify-items: center;
+  text-align: center;
+}
+
+.result-icon {
+  align-items: center;
+  background: var(--accent-soft);
+  border: 1px solid #cdddfc;
+  border-radius: 22px;
+  color: var(--accent);
+  display: grid;
+  font-size: 1.05rem;
+  font-weight: 700;
+  height: 96px;
+  letter-spacing: 0.14em;
+  margin-bottom: 14px;
+  width: 96px;
+}
+
+.result-eyebrow {
+  margin-bottom: 6px;
+}
+
+.result-panel h2 {
+  font-size: clamp(3rem, 8vw, 5rem);
+  line-height: 0.9;
+  margin-bottom: 18px;
+  text-transform: uppercase;
+}
+
+.result-card {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 0 18px;
+  padding: 22px;
+  text-align: left;
+  width: 100%;
+}
+
+.result-time {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 0.9;
+  margin: 8px 0 0;
+}
+
+.history-item {
+  align-items: start;
+  border-left: 3px solid transparent;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: auto 1fr auto;
+  padding: 18px;
+}
+
+.history-item:first-child {
+  border-left-color: var(--accent);
+}
+
+.history-icon {
+  align-items: center;
+  background: var(--surface-strong);
+  border-radius: 14px;
+  color: var(--muted);
+  display: grid;
+  font-size: 0.78rem;
+  font-weight: 700;
+  height: 52px;
+  letter-spacing: 0.12em;
+  width: 52px;
+}
+
+.history-icon-in {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.history-copy h3 {
+  font-size: 1.1rem;
+}
+
+.history-copy p {
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.history-meta {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.history-state-card {
+  align-items: center;
+  display: flex;
+}
+
+.history-empty {
+  background: var(--surface-muted);
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  color: var(--muted);
+  padding: 20px;
+}
+
+@media (max-width: 768px) {
+  .history-item,
+  .result-card {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .history-meta {
+    justify-items: start;
+  }
+}

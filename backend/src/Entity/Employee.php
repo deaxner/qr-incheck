@@ -12,6 +12,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_employee_qr_code', columns: ['qr_code'])]
 class Employee
 {
+    private const DEFAULT_TIMEZONE = 'Europe/Amsterdam';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -22,6 +24,15 @@ class Employee
 
     #[ORM\Column(name: 'qr_code', length: 64)]
     private string $qrCode;
+
+    #[ORM\Column(length: 255)]
+    private string $department;
+
+    #[ORM\Column(name: 'employment_type', length: 64)]
+    private string $employmentType;
+
+    #[ORM\Column(length: 255)]
+    private string $location;
 
     #[ORM\Column(name: 'created_at')]
     private \DateTimeImmutable $createdAt;
@@ -36,12 +47,22 @@ class Employee
     #[ORM\OrderBy(['checkInAt' => 'DESC'])]
     private Collection $timeEntries;
 
-    public function __construct(string $name, string $qrCode, ?\DateTimeImmutable $now = null)
+    public function __construct(
+        string $name,
+        string $qrCode,
+        string $department = 'Operations',
+        string $employmentType = 'Full-time',
+        string $location = 'HQ',
+        ?\DateTimeImmutable $now = null,
+    )
     {
         $this->name = $name;
         $this->qrCode = $qrCode;
+        $this->department = $department;
+        $this->employmentType = $employmentType;
+        $this->location = $location;
         $this->timeEntries = new ArrayCollection();
-        $this->createdAt = $now ?? new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $this->createdAt = $now ?? new \DateTimeImmutable('now', new \DateTimeZone(self::DEFAULT_TIMEZONE));
         $this->updatedAt = $this->createdAt;
     }
 
@@ -60,9 +81,24 @@ class Employee
         return $this->qrCode;
     }
 
+    public function getDepartment(): string
+    {
+        return $this->department;
+    }
+
+    public function getEmploymentType(): string
+    {
+        return $this->employmentType;
+    }
+
+    public function getLocation(): string
+    {
+        return $this->location;
+    }
+
     public function rotateQrCode(string $qrCode, ?\DateTimeImmutable $at = null): void
     {
         $this->qrCode = $qrCode;
-        $this->updatedAt = $at ?? new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $this->updatedAt = $at ?? new \DateTimeImmutable('now', new \DateTimeZone(self::DEFAULT_TIMEZONE));
     }
 }

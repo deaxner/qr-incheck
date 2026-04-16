@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Service;
+namespace App\Employees\Application;
 
+use App\Employees\Domain\QrCodeGenerator;
 use App\Entity\Employee;
 use Doctrine\ORM\EntityManagerInterface;
 

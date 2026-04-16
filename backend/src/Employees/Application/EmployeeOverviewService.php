@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service;
+namespace App\Employees\Application;
 
 use App\Repository\EmployeeRepository;
 use App\Repository\TimeEntryRepository;
@@ -46,6 +46,11 @@ class EmployeeOverviewService
                 'status' => $status,
                 'statusLabel' => 'checked_in' === $status ? 'Ingecheckt' : 'Uitgecheckt',
                 'lastActionAt' => $lastActionAt,
+                'profile' => [
+                    'department' => $employee->getDepartment(),
+                    'employmentType' => $employee->getEmploymentType(),
+                    'location' => $employee->getLocation(),
+                ],
             ];
         }
 

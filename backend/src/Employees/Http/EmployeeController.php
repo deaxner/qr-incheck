@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Controller\Api;
+namespace App\Employees\Http;
 
+use App\Employees\Application\EmployeeHistoryService;
+use App\Employees\Application\EmployeeOverviewService;
+use App\Employees\Application\QrCodeRotationService;
 use App\Repository\EmployeeRepository;
-use App\Service\EmployeeOverviewService;
-use App\Service\QrCodeRotationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
@@ -16,6 +17,24 @@ class EmployeeController extends AbstractController
     public function index(EmployeeOverviewService $employeeOverviewService): JsonResponse
     {
         return $this->json($employeeOverviewService->getOverview());
+    }
+
+    #[Route('/{id}/history', name: 'api_employees_history', methods: ['GET'])]
+    public function history(
+        int $id,
+        EmployeeRepository $employeeRepository,
+        EmployeeHistoryService $employeeHistoryService,
+    ): JsonResponse {
+        $employee = $employeeRepository->find($id);
+
+        if (!$employee) {
+            return $this->json([
+                'code' => 'employee_not_found',
+                'message' => 'Medewerker niet gevonden.',
+            ], 404);
+        }
+
+        return $this->json($employeeHistoryService->getForEmployee($employee));
     }
 
     #[Route('/{id}/regenerate-qr', name: 'api_employees_regenerate_qr', methods: ['POST'])]
@@ -40,6 +59,11 @@ class EmployeeController extends AbstractController
                 'id' => $employee->getId(),
                 'name' => $employee->getName(),
                 'qrCode' => $employee->getQrCode(),
+                'profile' => [
+                    'department' => $employee->getDepartment(),
+                    'employmentType' => $employee->getEmploymentType(),
+                    'location' => $employee->getLocation(),
+                ],
             ],
         ]);
     }

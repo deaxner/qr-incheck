@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exception;
+namespace App\Clocking\Exception;
 
 class UnknownQrCodeException extends \RuntimeException
 {

@@ -6,6 +6,8 @@ services:
     depends_on:
       backend:
         condition: service_started
+    environment:
+      TZ: Europe/Amsterdam
     ports:
       - "8081:80"
 
@@ -19,7 +21,9 @@ services:
     environment:
       APP_ENV: dev
       APP_SECRET: demo-secret
+      APP_TIMEZONE: Europe/Amsterdam
       DATABASE_URL: mysql://qr_user:qr_password@db:3306/qr_incheck?serverVersion=8.0.36&charset=utf8mb4
+      TZ: Europe/Amsterdam
     ports:
       - "8082:80"
 
@@ -28,6 +32,7 @@ services:
     environment:
       MYSQL_DATABASE: qr_incheck
       MYSQL_PASSWORD: qr_password
+      TZ: Europe/Amsterdam
       MYSQL_ROOT_PASSWORD: root
       MYSQL_USER: qr_user
     healthcheck:

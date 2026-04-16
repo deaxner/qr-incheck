@@ -1,21 +1,26 @@
 <?php
 
-namespace App\Service;
+namespace App\Clocking\Application;
 
-use App\Dto\ScanResult;
+use App\Clocking\Dto\ScanResult;
+use App\Clocking\Exception\UnknownQrCodeException;
 use App\Entity\TimeEntry;
-use App\Exception\UnknownQrCodeException;
 use App\Repository\EmployeeRepository;
 use App\Repository\TimeEntryRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 class ScanService
 {
+    private readonly \DateTimeZone $timezone;
+
     public function __construct(
         private readonly EmployeeRepository $employeeRepository,
         private readonly TimeEntryRepository $timeEntryRepository,
         private readonly EntityManagerInterface $entityManager,
+        #[Autowire('%app.timezone%')] string $appTimezone,
     ) {
+        $this->timezone = new \DateTimeZone($appTimezone);
     }
 
     public function process(string $rawCode): ScanResult
@@ -32,7 +37,7 @@ class ScanService
             throw new UnknownQrCodeException();
         }
 
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $now = new \DateTimeImmutable('now', $this->timezone);
         $openEntry = $this->timeEntryRepository->findOpenEntryForEmployee($employee);
 
         if ($openEntry) {

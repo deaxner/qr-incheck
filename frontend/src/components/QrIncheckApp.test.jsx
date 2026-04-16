@@ -17,10 +17,15 @@ describe('QrIncheckApp', () => {
           ok: true,
           json: async () => ({
             action: 'checked_in',
-            timestamp: '2026-04-15 21:45:00 UTC',
+            timestamp: '2026-04-15 23:45:00 CEST',
             employee: {
               id: 1,
-              name: 'Alice'
+              name: 'Alice',
+              profile: {
+                department: 'Product Engineering',
+                employmentType: 'Full-time',
+                location: 'Main Entrance'
+              }
             }
           })
         })
@@ -33,9 +38,33 @@ describe('QrIncheckApp', () => {
               qrCode: 'ALICE-DEMO-001',
               status: 'checked_in',
               statusLabel: 'Ingecheckt',
-              lastActionAt: '2026-04-15 21:45:00 UTC'
+              lastActionAt: '2026-04-15 23:45:00 CEST',
+              profile: {
+                department: 'Product Engineering',
+                employmentType: 'Full-time',
+                location: 'Main Entrance'
+              }
             }
           ]
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            summary: {
+              weekMinutes: 120,
+              activeSessionMinutes: 45
+            },
+            entries: [
+              {
+                id: '1-in',
+                action: 'checked_in',
+                timestamp: '2026-04-15 23:45:00 CEST',
+                location: 'Main Entrance',
+                state: 'onsite',
+                stateLabel: 'Ingeklokt'
+              }
+            ]
+          })
         })
     );
 
@@ -48,7 +77,12 @@ describe('QrIncheckApp', () => {
             qrCode: 'ALICE-DEMO-001',
             status: 'checked_out',
             statusLabel: 'Uitgecheckt',
-            lastActionAt: null
+            lastActionAt: null,
+            profile: {
+              department: 'Product Engineering',
+              employmentType: 'Full-time',
+              location: 'Main Entrance'
+            }
           }
         ]}
       />
@@ -73,7 +107,12 @@ describe('QrIncheckApp', () => {
             employee: {
               id: 2,
               name: 'Bob',
-              qrCode: 'NEW-BOB-CODE'
+              qrCode: 'NEW-BOB-CODE',
+              profile: {
+                department: 'Operations',
+                employmentType: 'Shift-based',
+                location: 'North Lobby'
+              }
             }
           })
         })
@@ -86,9 +125,24 @@ describe('QrIncheckApp', () => {
               qrCode: 'NEW-BOB-CODE',
               status: 'checked_out',
               statusLabel: 'Uitgecheckt',
-              lastActionAt: null
+              lastActionAt: null,
+              profile: {
+                department: 'Operations',
+                employmentType: 'Shift-based',
+                location: 'North Lobby'
+              }
             }
           ]
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            summary: {
+              weekMinutes: 0,
+              activeSessionMinutes: null
+            },
+            entries: []
+          })
         })
     );
 
@@ -101,7 +155,12 @@ describe('QrIncheckApp', () => {
             qrCode: 'OLD-BOB-CODE',
             status: 'checked_out',
             statusLabel: 'Uitgecheckt',
-            lastActionAt: null
+            lastActionAt: null,
+            profile: {
+              department: 'Operations',
+              employmentType: 'Shift-based',
+              location: 'North Lobby'
+            }
           }
         ]}
       />

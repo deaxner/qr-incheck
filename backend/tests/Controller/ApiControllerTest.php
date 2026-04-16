@@ -67,9 +67,28 @@ class ApiControllerTest extends WebTestCase
         self::assertNotSame('BOB-DEMO-002', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['employee']['qrCode']);
     }
 
+    public function testEmployeeHistoryEndpointReturnsOwnedHistory(): void
+    {
+        $employee = $this->createEmployee('Alice', 'ALICE-DEMO-001');
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        $client->request('POST', '/api/scan', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
+            'code' => 'ALICE-DEMO-001',
+        ], JSON_THROW_ON_ERROR));
+
+        $client->request('GET', sprintf('/api/employees/%d/history', $employee->getId()));
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('Product Engineering', $payload['employee']['profile']['department']);
+        self::assertCount(1, $payload['entries']);
+        self::assertSame('checked_in', $payload['entries'][0]['action']);
+    }
+
     private function createEmployee(string $name, string $qrCode): Employee
     {
-        $employee = new Employee($name, $qrCode);
+        $employee = new Employee($name, $qrCode, 'Product Engineering', 'Full-time', 'Main Entrance');
         $this->entityManager->persist($employee);
         $this->entityManager->flush();
 

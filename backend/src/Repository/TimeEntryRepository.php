@@ -86,4 +86,33 @@ class TimeEntryRepository extends ServiceEntityRepository
 
         return $indexed;
     }
+
+    /**
+     * @return TimeEntry[]
+     */
+    public function findRecentEntriesForEmployee(Employee $employee, int $limit = 10): array
+    {
+        return $this->createQueryBuilder('entry')
+            ->andWhere('entry.employee = :employee')
+            ->setParameter('employee', $employee)
+            ->orderBy('entry.checkInAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return TimeEntry[]
+     */
+    public function findEntriesForEmployeeFrom(Employee $employee, \DateTimeImmutable $from): array
+    {
+        return $this->createQueryBuilder('entry')
+            ->andWhere('entry.employee = :employee')
+            ->andWhere('entry.checkInAt >= :from')
+            ->setParameter('employee', $employee)
+            ->setParameter('from', $from)
+            ->orderBy('entry.checkInAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

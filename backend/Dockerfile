@@ -13,6 +13,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
+COPY backend/docker/php-timezone.ini /usr/local/etc/php/conf.d/zz-timezone.ini
 COPY backend/ .
 COPY --from=composer_deps /app/vendor ./vendor
 

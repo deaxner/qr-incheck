@@ -1,0 +1,42 @@
+:root {
+  --bg: #f3efe7;
+  --surface: #fffdf8;
+  --surface-muted: #f7f2ea;
+  --surface-strong: #ebe4d8;
+  --ink: #151515;
+  --muted: #5f5a52;
+  --line: #d9d0c2;
+  --accent: #0f5bd8;
+  --accent-soft: #d9e7ff;
+  --danger-soft: #fde4e1;
+
+  color: var(--ink);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(to bottom, rgba(255, 253, 248, 0.84), rgba(243, 239, 231, 0.96)),
+    var(--bg);
+}
+
+button,
+select {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
