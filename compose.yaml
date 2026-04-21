@@ -1,8 +1,12 @@
 services:
-  frontend:
+  scanner:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        APP_NAME: "@qr-incheck/scanner-app"
+        APP_DIR: "scanner-app"
+        VITE_DEVICE_TOKEN: "scanner-demo-token"
     depends_on:
       backend:
         condition: service_started
@@ -10,6 +14,36 @@ services:
       TZ: Europe/Amsterdam
     ports:
       - "8081:80"
+
+  admin:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        APP_NAME: "@qr-incheck/admin-app"
+        APP_DIR: "admin-app"
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      TZ: Europe/Amsterdam
+    ports:
+      - "8083:80"
+
+  employee:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        APP_NAME: "@qr-incheck/employee-app"
+        APP_DIR: "employee-app"
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      TZ: Europe/Amsterdam
+    ports:
+      - "8084:80"
 
   backend:
     build:
@@ -22,6 +56,7 @@ services:
       APP_ENV: dev
       APP_SECRET: demo-secret
       APP_TIMEZONE: Europe/Amsterdam
+      APP_SCANNER_DEVICE_TOKEN: scanner-demo-token
       DATABASE_URL: mysql://qr_user:qr_password@db:3306/qr_incheck?serverVersion=8.0.36&charset=utf8mb4
       TZ: Europe/Amsterdam
     ports:

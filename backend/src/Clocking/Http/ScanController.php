@@ -2,21 +2,28 @@
 
 namespace App\Clocking\Http;
 
-use App\Auth\Application\AuthContext;
 use App\Clocking\Application\ScanService;
 use App\Clocking\Exception\UnknownQrCodeException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
+use JsonException;
 
 class ScanController extends AbstractController
 {
     #[Route('/api/scan', name: 'api_scan', methods: ['POST'])]
-    public function __invoke(Request $request, ScanService $scanService, AuthContext $authContext): JsonResponse
+    public function __invoke(Request $request, ScanService $scanService): JsonResponse
     {
-        $user = $authContext->requireUser($request);
-        $payload = json_decode($request->getContent(), true);
+        try {
+            $payload = json_decode($request->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return $this->json([
+                'code' => 'invalid_request',
+                'message' => 'Voer een geldige QR-code in.',
+            ], 400);
+        }
+
         $code = is_array($payload) ? ($payload['code'] ?? '') : '';
 
         if (!is_string($code) || '' === trim($code)) {
@@ -27,21 +34,12 @@ class ScanController extends AbstractController
         }
 
         try {
-            $result = $scanService->process($code, $user->isAdmin() ? null : $user->employeeId);
+            $result = $scanService->process(trim($code));
         } catch (UnknownQrCodeException $exception) {
             return $this->json([
                 'code' => 'unknown_qr_code',
                 'message' => $exception->getMessage(),
             ], 404);
-        } catch (\RuntimeException $exception) {
-            if ('forbidden' !== $exception->getMessage()) {
-                throw $exception;
-            }
-
-            return $this->json([
-                'code' => 'forbidden',
-                'message' => 'Je mag alleen je eigen badge gebruiken.',
-            ], 403);
         }
 
         return $this->json([

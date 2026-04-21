@@ -2,14 +2,15 @@
   "name": "qr-incheck-frontend",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "build": "npm run build --workspaces",
+    "build:admin": "npm run build --workspace=@qr-incheck/admin-app",
+    "build:employee": "npm run build --workspace=@qr-incheck/employee-app",
+    "build:scanner": "npm run build --workspace=@qr-incheck/scanner-app",
+    "test": "npm run test --workspaces"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

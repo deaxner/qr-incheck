@@ -1,0 +1,43 @@
+.employee-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.employee-card-selected {
+  border-color: #cdddfc;
+  box-shadow: 0 0 0 2px rgba(15, 91, 216, 0.08);
+}
+
+.employee-card-main {
+  display: grid;
+  gap: 6px;
+}
+
+.employee-card-side {
+  display: grid;
+  gap: 6px;
+}
+
+.employee-time-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.employee-time-value {
+  font-size: 1rem;
+}
+
+.employee-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+@media (max-width: 768px) {
+  .employee-actions {
+    display: grid;
+  }
+}

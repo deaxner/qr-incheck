@@ -1,14 +1,20 @@
-FROM composer:2 AS composer_deps
+FROM composer:2 AS composer_bin
+
+FROM php:8.5-cli AS composer_deps
 WORKDIR /app
+COPY --from=composer_bin /usr/bin/composer /usr/bin/composer
 COPY backend/composer.json backend/composer.lock backend/symfony.lock ./
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git unzip \
+    && rm -rf /var/lib/apt/lists/*
 RUN composer install --no-interaction --no-scripts
 
-FROM php:8.2-apache
+FROM php:8.5-apache
 WORKDIR /var/www/html
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libicu-dev unzip \
-    && docker-php-ext-install intl pdo_mysql \
+    && apt-get install -y --no-install-recommends libicu-dev libsqlite3-dev unzip \
+    && docker-php-ext-install intl pdo_mysql pdo_sqlite \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
 

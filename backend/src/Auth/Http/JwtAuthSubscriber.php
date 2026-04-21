@@ -5,6 +5,8 @@ namespace App\Auth\Http;
 use App\Auth\Application\AuthContext;
 use App\Auth\Application\DemoUserStore;
 use App\Auth\Application\JwtService;
+use App\Auth\Application\ScannerDeviceTokenService;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -15,6 +17,8 @@ class JwtAuthSubscriber implements EventSubscriberInterface
     public function __construct(
         private readonly JwtService $jwtService,
         private readonly DemoUserStore $demoUserStore,
+        private readonly ScannerDeviceTokenService $scannerDeviceTokenService,
+        private readonly RateLimiterFactory $scanRequestLimiter,
     ) {
     }
 
@@ -35,6 +39,41 @@ class JwtAuthSubscriber implements EventSubscriberInterface
         $path = $request->getPathInfo();
 
         if (!str_starts_with($path, '/api/') || '/api/auth/login' === $path) {
+            return;
+        }
+
+        if ('/api/scan' === $path) {
+            $deviceToken = $request->headers->get('X-DEVICE-TOKEN');
+
+            if (null === $deviceToken || '' === trim($deviceToken)) {
+                $event->setResponse(new JsonResponse([
+                    'code' => 'invalid_device_token',
+                    'message' => 'Scanner device token ontbreekt.',
+                ], 401));
+
+                return;
+            }
+
+            if (!$this->scannerDeviceTokenService->isValid($deviceToken)) {
+                $event->setResponse(new JsonResponse([
+                    'code' => 'invalid_device_token',
+                    'message' => 'Scanner device token is ongeldig.',
+                ], 401));
+
+                return;
+            }
+
+            $limit = $this->scanRequestLimiter->create(trim($deviceToken))->consume(1);
+
+            if (!$limit->isAccepted()) {
+                $event->setResponse(new JsonResponse([
+                    'code' => 'rate_limited',
+                    'message' => 'Er worden te veel scans tegelijk verwerkt. Probeer het zo opnieuw.',
+                ], 429));
+
+                return;
+            }
+
             return;
         }
 

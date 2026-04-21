@@ -7,8 +7,9 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
-    app.timezone: 'Europe/Amsterdam'
+    app.timezone: '%env(APP_TIMEZONE)%'
     app.secret: '%env(APP_SECRET)%'
+    app.scanner_device_token: '%env(APP_SCANNER_DEVICE_TOKEN)%'
 
 services:
     # default configuration for services in *this* file
@@ -27,6 +28,14 @@ services:
     App\Auth\Application\JwtService:
         arguments:
             $appSecret: '%app.secret%'
+
+    App\Auth\Application\ScannerDeviceTokenService:
+        arguments:
+            $configuredToken: '%app.scanner_device_token%'
+
+    App\Auth\Http\JwtAuthSubscriber:
+        arguments:
+            $scanRequestLimiter: '@limiter.scan_requests'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

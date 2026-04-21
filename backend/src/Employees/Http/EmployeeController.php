@@ -5,8 +5,10 @@ namespace App\Employees\Http;
 use App\Auth\Application\AuthContext;
 use App\Employees\Application\EmployeeHistoryService;
 use App\Employees\Application\EmployeeOverviewService;
+use App\Employees\Application\EmployeeSelfStatusService;
 use App\Employees\Application\QrCodeRotationService;
 use App\Repository\EmployeeRepository;
+use App\Shared\Http\ApiAccess;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
@@ -18,20 +20,36 @@ class EmployeeController extends AbstractController
     public function index(
         \Symfony\Component\HttpFoundation\Request $request,
         EmployeeOverviewService $employeeOverviewService,
-        AuthContext $authContext,
+        ApiAccess $apiAccess,
     ): JsonResponse
     {
-        $user = $authContext->requireUser($request);
-        $overview = $employeeOverviewService->getOverview();
+        $accessResult = $apiAccess->requireAdmin($request, 'Alleen admins mogen teamoverzichten bekijken.');
 
-        if (!$user->isAdmin()) {
-            $overview = array_values(array_filter(
-                $overview,
-                static fn (array $employee): bool => $employee['id'] === $user->employeeId
-            ));
+        if ($accessResult instanceof JsonResponse) {
+            return $accessResult;
         }
 
-        return $this->json($overview);
+        return $this->json($employeeOverviewService->getOverview());
+    }
+
+    #[Route('/me/status', name: 'api_employees_me_status', methods: ['GET'])]
+    public function selfStatus(
+        \Symfony\Component\HttpFoundation\Request $request,
+        EmployeeRepository $employeeRepository,
+        EmployeeSelfStatusService $employeeSelfStatusService,
+        AuthContext $authContext,
+    ): JsonResponse {
+        $user = $authContext->requireUser($request);
+        $employee = $employeeRepository->find($user->employeeId);
+
+        if (!$employee) {
+            return $this->json([
+                'code' => 'employee_not_found',
+                'message' => 'Medewerker niet gevonden.',
+            ], 404);
+        }
+
+        return $this->json($employeeSelfStatusService->getForEmployee($employee));
     }
 
     #[Route('/{id}/history', name: 'api_employees_history', methods: ['GET'])]
@@ -40,19 +58,12 @@ class EmployeeController extends AbstractController
         int $id,
         EmployeeRepository $employeeRepository,
         EmployeeHistoryService $employeeHistoryService,
-        AuthContext $authContext,
+        ApiAccess $apiAccess,
     ): JsonResponse {
-        try {
-            $authContext->ensureCanAccessEmployee($request, $id);
-        } catch (\RuntimeException $exception) {
-            if ('forbidden' !== $exception->getMessage()) {
-                throw $exception;
-            }
+        $accessResult = $apiAccess->requireAdmin($request, 'Alleen admins mogen medewerkerhistorie bekijken.');
 
-            return $this->json([
-                'code' => 'forbidden',
-                'message' => 'Je hebt geen toegang tot deze medewerkerhistorie.',
-            ], 403);
+        if ($accessResult instanceof JsonResponse) {
+            return $accessResult;
         }
 
         $employee = $employeeRepository->find($id);
@@ -73,19 +84,12 @@ class EmployeeController extends AbstractController
         int $id,
         EmployeeRepository $employeeRepository,
         QrCodeRotationService $qrCodeRotationService,
-        AuthContext $authContext,
+        ApiAccess $apiAccess,
     ): JsonResponse {
-        try {
-            $authContext->requireAdmin($request);
-        } catch (\RuntimeException $exception) {
-            if ('forbidden' !== $exception->getMessage()) {
-                throw $exception;
-            }
+        $accessResult = $apiAccess->requireAdmin($request, 'Alleen admins mogen badges vernieuwen.');
 
-            return $this->json([
-                'code' => 'forbidden',
-                'message' => 'Alleen admins mogen badges vernieuwen.',
-            ], 403);
+        if ($accessResult instanceof JsonResponse) {
+            return $accessResult;
         }
 
         $employee = $employeeRepository->find($id);

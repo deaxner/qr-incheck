@@ -1,0 +1,75 @@
+.employee-shell {
+  display: grid;
+  justify-items: center;
+}
+
+.employee-frame {
+  display: grid;
+  gap: 20px;
+  width: min(100%, 900px);
+}
+
+.employee-header {
+  align-items: center;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.employee-title {
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.employee-panel {
+  display: grid;
+  gap: 24px;
+}
+
+.employee-hero {
+  align-items: start;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.employee-card-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+}
+
+.employee-qr-card {
+  align-items: center;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.employee-detail-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.status-badge-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.status-badge-idle {
+  background: var(--surface-strong);
+  color: #4f4a43;
+}
+
+@media (max-width: 768px) {
+  .employee-header,
+  .employee-hero,
+  .employee-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

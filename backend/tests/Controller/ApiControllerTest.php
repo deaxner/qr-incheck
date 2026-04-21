@@ -5,11 +5,14 @@ namespace App\Tests\Controller;
 use App\Entity\Employee;
 use App\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class ApiControllerTest extends WebTestCase
 {
     use RefreshDatabaseTrait;
+
+    private const SCANNER_DEVICE_TOKEN = 'scanner-demo-token';
 
     private EntityManagerInterface $entityManager;
 
@@ -18,6 +21,12 @@ class ApiControllerTest extends WebTestCase
         self::ensureKernelShutdown();
         self::bootKernel();
         $this->entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $rateLimiterCache = static::getContainer()->get('cache.rate_limiter');
+
+        if ($rateLimiterCache instanceof CacheItemPoolInterface) {
+            $rateLimiterCache->clear();
+        }
+
         $this->resetDatabase($this->entityManager);
     }
 
@@ -82,7 +91,7 @@ class ApiControllerTest extends WebTestCase
         self::assertSame('North Lobby', $payload['employee']['profile']['location']);
     }
 
-    public function testEmployeeUserOnlySeesOwnOverviewEntry(): void
+    public function testEmployeeUserCannotViewTeamOverview(): void
     {
         $this->createEmployee('Alice Janssen', 'ALICE-DEMO-001');
         $this->createEmployee('Bob de Vries', 'BOB-DEMO-002', 'Operations', 'Shift-based', 'North Lobby');
@@ -91,10 +100,8 @@ class ApiControllerTest extends WebTestCase
 
         $client->request('GET', '/api/employees');
 
-        self::assertResponseIsSuccessful();
-        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertCount(1, $payload);
-        self::assertSame('Alice Janssen', $payload[0]['name']);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('forbidden', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
     }
 
     public function testEmployeeUserCannotViewAnotherEmployeesHistory(): void
@@ -123,7 +130,7 @@ class ApiControllerTest extends WebTestCase
         self::assertSame('forbidden', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
     }
 
-    public function testEmployeeUserCannotScanAnotherEmployeesBadge(): void
+    public function testEmployeesCannotUseScanEndpointWithJwtOnly(): void
     {
         $this->createEmployee('Alice Janssen', 'ALICE-DEMO-001');
         $this->createEmployee('Bob de Vries', 'BOB-DEMO-002', 'Operations', 'Shift-based', 'North Lobby');
@@ -134,42 +141,107 @@ class ApiControllerTest extends WebTestCase
             'code' => 'BOB-DEMO-002',
         ], JSON_THROW_ON_ERROR));
 
-        self::assertResponseStatusCodeSame(403);
-        self::assertSame('forbidden', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+        self::assertResponseStatusCodeSame(401);
+        self::assertSame('invalid_device_token', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
     }
 
-    public function testScanEndpointHandlesCheckInAndCheckOut(): void
+    public function testScanEndpointHandlesCheckInAndCheckOutWithDeviceToken(): void
     {
         $this->createEmployee('Alice', 'ALICE-DEMO-001');
         self::ensureKernelShutdown();
-        $client = $this->createAuthenticatedClient();
+        $client = static::createClient();
 
-        $client->request('POST', '/api/scan', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
-            'code' => 'ALICE-DEMO-001',
-        ], JSON_THROW_ON_ERROR));
+        $this->requestScan($client, 'ALICE-DEMO-001');
 
         self::assertResponseIsSuccessful();
         self::assertSame('checked_in', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['action']);
 
-        $client->request('POST', '/api/scan', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
-            'code' => 'ALICE-DEMO-001',
-        ], JSON_THROW_ON_ERROR));
+        $this->requestScan($client, 'ALICE-DEMO-001');
 
         self::assertResponseIsSuccessful();
         self::assertSame('checked_out', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['action']);
     }
 
+    public function testScanEndpointRejectsMissingDeviceToken(): void
+    {
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        $client->request('POST', '/api/scan', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
+            'code' => 'ALICE-DEMO-001',
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(401);
+        self::assertSame('invalid_device_token', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+    }
+
+    public function testScanEndpointRejectsInvalidDeviceToken(): void
+    {
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        $client->request('POST', '/api/scan', server: [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_DEVICE_TOKEN' => 'wrong-token',
+        ], content: json_encode([
+            'code' => 'ALICE-DEMO-001',
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(401);
+        self::assertSame('invalid_device_token', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+    }
+
+    public function testScanEndpointRejectsMalformedJson(): void
+    {
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        $client->request('POST', '/api/scan', server: [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_DEVICE_TOKEN' => self::SCANNER_DEVICE_TOKEN,
+        ], content: '{"code":');
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame('invalid_request', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+    }
+
+    public function testScanEndpointRejectsBlankCode(): void
+    {
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        $this->requestScan($client, '   ');
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame('invalid_request', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+    }
+
     public function testScanEndpointReturnsExpectedErrorForUnknownCode(): void
     {
         self::ensureKernelShutdown();
-        $client = $this->createAuthenticatedClient();
+        $client = static::createClient();
 
-        $client->request('POST', '/api/scan', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
-            'code' => 'UNKNOWN-CODE',
-        ], JSON_THROW_ON_ERROR));
+        $this->requestScan($client, 'UNKNOWN-CODE');
 
         self::assertResponseStatusCodeSame(404);
         self::assertSame('unknown_qr_code', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+    }
+
+    public function testScanEndpointRateLimitsBurstRequestsPerDevice(): void
+    {
+        $this->createEmployee('Alice', 'ALICE-DEMO-001');
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        for ($attempt = 0; $attempt < 6; ++$attempt) {
+            $this->requestScan($client, 'ALICE-DEMO-001');
+            self::assertResponseIsSuccessful();
+        }
+
+        $this->requestScan($client, 'ALICE-DEMO-001');
+
+        self::assertResponseStatusCodeSame(429);
+        self::assertSame('rate_limited', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
     }
 
     public function testRegenerateQrCodeEndpointReturnsNewCode(): void
@@ -190,9 +262,7 @@ class ApiControllerTest extends WebTestCase
         self::ensureKernelShutdown();
         $client = $this->createAuthenticatedClient();
 
-        $client->request('POST', '/api/scan', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
-            'code' => 'ALICE-DEMO-001',
-        ], JSON_THROW_ON_ERROR));
+        $this->requestScan($client, 'ALICE-DEMO-001');
 
         $client->request('GET', sprintf('/api/employees/%d/history', $employee->getId()));
 
@@ -201,6 +271,22 @@ class ApiControllerTest extends WebTestCase
         self::assertSame('Product Engineering', $payload['employee']['profile']['department']);
         self::assertCount(1, $payload['entries']);
         self::assertSame('checked_in', $payload['entries'][0]['action']);
+    }
+
+    public function testEmployeeSelfStatusEndpointReturnsCurrentStatus(): void
+    {
+        $this->createEmployee('Alice Janssen', 'ALICE-DEMO-001');
+        self::ensureKernelShutdown();
+        $client = $this->createAuthenticatedClient('alice@timesignal.demo', 'User123!');
+
+        $this->requestScan($client, 'ALICE-DEMO-001');
+
+        $client->request('GET', '/api/employees/me/status');
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('IN', $payload['status']);
+        self::assertNotNull($payload['lastClock']);
     }
 
     private function createEmployee(
@@ -236,5 +322,15 @@ class ApiControllerTest extends WebTestCase
         $client->setServerParameter('HTTP_AUTHORIZATION', sprintf('Bearer %s', $payload['token']));
 
         return $client;
+    }
+
+    private function requestScan(object $client, string $code): void
+    {
+        $client->request('POST', '/api/scan', server: [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_DEVICE_TOKEN' => self::SCANNER_DEVICE_TOKEN,
+        ], content: json_encode([
+            'code' => $code,
+        ], JSON_THROW_ON_ERROR));
     }
 }

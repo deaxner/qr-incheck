@@ -1,0 +1,8 @@
+framework:
+    rate_limiter:
+        scan_requests:
+            policy: token_bucket
+            limit: 6
+            rate:
+                interval: '1 minute'
+                amount: 6

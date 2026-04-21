@@ -1,6 +1,6 @@
 # QR-Incheck
 
-Compacte demo-opdracht voor QR-gebaseerde check-in en check-out met `Symfony`, `React`, `MySQL` en `Docker`.
+Compacte demo-opdracht voor QR-gebaseerde check-in en check-out met `Symfony`, een opgesplitste `React` frontend-monorepo, `MySQL`, `PHP 8.5` en `Docker`.
 
 Het doel van deze repo is nadrukkelijk niet om een volledige workforce-oplossing neer te zetten. Dit is een afgebakende demo-opdracht waarin ik in beperkte tijd laat zien hoe ik een geloofwaardige verticale slice opzet, keuzes onderbouw en scope bewust klein houd.
 
@@ -12,6 +12,19 @@ De demo is opgezet om met minimale stappen te draaien. De enige vereiste is een 
 
 - Docker
 - Docker Compose
+- PHP `8.5.x` voor lokale backend-tests
+
+### Lokale PHP-tests
+
+De backend-tests draaien lokaal op `PHP 8.5` met `pdo_sqlite` en `sqlite3` ingeschakeld.
+
+Controleer lokaal:
+
+```bash
+php -v
+php -m
+php bin/phpunit
+```
 
 ### Starten
 
@@ -25,8 +38,10 @@ Bij de eerste start voert de backend automatisch migraties uit en seedt hij demo
 
 ### Toegang
 
-- Frontend: `http://localhost:8081`
+- Scanner App: `http://localhost:8081`
 - Backend: `http://localhost:8082`
+- Admin App: `http://localhost:8083`
+- Employee App: `http://localhost:8084`
 
 ### Stoppen
 
@@ -41,26 +56,28 @@ Log direct in via het login-scherm met een van deze accounts:
 - Admin: `bob.admin@timesignal.demo` / `Admin123!`
 - Medewerker: `alice@timesignal.demo` / `User123!`
 
-De admin ziet de volledige demo inclusief teamoverzicht, historie en badge-rotatie.
+De admin gebruikt de Admin App voor teamoverzicht, historie en badge-rotatie.
 
-De medewerker ziet bewust alleen de eigen badge en huidige incheckstatus.
+De medewerker gebruikt de Employee App voor de eigen badge en huidige incheckstatus.
 
 ## Wat Deze Demo Laat Zien
 
-- Werkende end-to-end check-in/check-out flow
-- In-product login met demo-accounts
+- Werkende multi-client demo met scanner-, admin- en employee-app
+- Camera-first scanner kiosk met handmatige fallback
+- In-product login met demo-accounts voor admin en medewerker
 - Backend als bron van waarheid voor businessregels en productdata
+- Device-token beveiligde en per device geratelimite scannerflow
 - Kleine beheerflow voor badge-rotatie
 - Gerichte tests op kernlogica en kritieke UI/API-flow
 
 ## Architectuurkeuzes
 
-Dit project is opgezet als een modulaire monolith. Backend en frontend draaien los, maar vormen samen een compacte applicatie die lokaal eenvoudig te starten en te begrijpen is.
+Dit project is opgezet als een modulaire monolith met meerdere frontend-clients. Backend en frontends draaien los, maar vormen samen een compacte applicatie die lokaal eenvoudig te starten en te begrijpen is.
 
 De structuur is feature-first:
 
 - Backend: domeinen zoals `Clocking`, `Employees` en `Auth`
-- Frontend: `app`, `modules`, `shared`
+- Frontend: `apps/*` en `shared/*`
 
 De backend is bewust de bron van waarheid:
 
@@ -78,22 +95,35 @@ De focus ligt op denken en structureren, niet op infrastructuurcomplexiteit.
 ## Structuur
 
 - `backend/`: Symfony API, domeinlogica, entities, tests, migrations
-- `frontend/`: React-app voor login, badge, historie en teamoverzicht
-- `compose.yaml`: containers voor frontend, backend en database
-- `memory-bank/`: ontwerpprincipes en context
+- `frontend/`: npm workspace met `scanner-app`, `admin-app`, `employee-app` en gedeelde frontend-code
+- `compose.yaml`: containers voor scanner, admin, employee, backend en database
+- `docs/adr/`: vastgelegde architectuurbesluiten
+- `memory-bank/`: ontwerpprincipes, context en v2-doelarchitectuur
+
+## V2-richting
+
+De beoogde volgende stap staat uitgewerkt in [memory-bank/v2-target-architecture.md](./memory-bank/v2-target-architecture.md).
+
+De kern van die richting:
+
+- van een frontend naar drie aparte clients: scanner, admin en employee
+- een gedeelde Symfony backend als bron van waarheid
+- verplichte shared frontend-laag voor API, types, utils en UI
+- aanvullende `/me/*` endpoints en device-beveiliging voor scanverkeer
 
 ## Demo-flow
 
-1. Log in als admin of medewerker
-2. Registreer een klokmoment via de badgecode
-3. Bekijk als admin historie en samenvatting
-4. Bekijk als admin teamstatus en roteer badges
+1. Gebruik Scanner App om een badgecode via camera of handmatige fallback te registreren
+2. Log in als admin in Admin App
+3. Bekijk als admin historie en teamstatus of roteer badges
+4. Log in als medewerker in Employee App om eigen badge en status te bekijken
 
 ## API-overzicht
 
 - `POST /api/auth/login`: login met demo-account
 - `GET /api/auth/me`: huidige gebruiker en gekoppelde medewerker
-- `POST /api/scan`: check-in / check-out
+- `GET /api/employees/me/status`: eigen check-instatus en laatste klokmoment
+- `POST /api/scan`: check-in / check-out, alleen voor scannerverkeer met `X-DEVICE-TOKEN`
 - `GET /api/employees`: teamoverzicht
 - `GET /api/employees/{id}/history`: historie
 - `POST /api/employees/{id}/regenerate-qr`: badge-rotatie
@@ -120,10 +150,10 @@ In productie zou dit worden vervangen door secure secrets management.
 
 ## Bewuste keuzes
 
-- Geen camera-scanning, input is gesimuleerd
+- Scanner-app start camera automatisch en houdt handmatige badge-invoer als fallback
 - MySQL voor runtime, SQLite voor tests
 - Focus op productlogica boven UI polish
-- JWT-authenticatie is aanwezig, maar uitgebreide autorisatie en enterprise-hardening vallen buiten v1
+- JWT-authenticatie voor admin/medewerker en apart device-token plus rate limiting voor scanner
 - Demo-data wordt automatisch gezaaid bij een lege database om de app direct bruikbaar te maken
 
 ## Richting productie

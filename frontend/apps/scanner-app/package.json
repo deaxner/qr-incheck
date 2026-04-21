@@ -1,0 +1,15 @@
+{
+  "name": "@qr-incheck/scanner-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@zxing/browser": "^0.1.5",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  }
+}
