@@ -44,6 +44,7 @@ class ApiControllerTest extends WebTestCase
         $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
 
         self::assertArrayHasKey('token', $payload);
+        self::assertArrayNotHasKey('authChoice', $payload);
         self::assertSame('bob.admin@timesignal.demo', $payload['user']['email']);
         self::assertSame('admin', $payload['user']['role']);
     }

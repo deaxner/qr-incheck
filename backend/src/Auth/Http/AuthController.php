@@ -53,7 +53,6 @@ class AuthController extends AbstractController
                 'role' => $user->role,
                 'employeeId' => $user->employeeId,
             ],
-            'authChoice' => 'Demo-auth met JWT is hier bewust gekozen. Het laat rolgestuurde toegang en API-bescherming zien zonder de scope op te blazen met SSO-integraties.',
         ]);
     }
 

@@ -120,7 +120,7 @@ export function EmployeeApp() {
           <div className="employee-hero">
             <div>
               <h2>{employee?.name ?? sessionUser?.name}</h2>
-              <p className="panel-copy">{employee?.profile?.department ?? 'Medewerker'} · {employee?.profile?.location ?? 'Locatie onbekend'}</p>
+              <p className="panel-copy">{employee?.profile?.department ?? 'Medewerker'} | {employee?.profile?.location ?? 'Locatie onbekend'}</p>
             </div>
             <span className={selfStatus?.status === 'IN' ? 'status-badge status-badge-active' : 'status-badge status-badge-idle'}>
               {selfStatus?.status === 'IN' ? 'Ingeklokt' : 'Uitgeklokt'}

@@ -66,7 +66,7 @@ De medewerker gebruikt de Employee App voor de eigen badge en huidige inchecksta
 - Camera-first scanner kiosk met handmatige fallback
 - In-product login met demo-accounts voor admin en medewerker
 - Backend als bron van waarheid voor businessregels en productdata
-- Device-token beveiligde en per device geratelimite scannerflow
+- Device-token beveiligde scannerflow met rate limiting per device
 - Kleine beheerflow voor badge-rotatie
 - Gerichte tests op kernlogica en kritieke UI/API-flow
 
@@ -123,7 +123,7 @@ De kern van die richting:
 - `POST /api/auth/login`: login met demo-account
 - `GET /api/auth/me`: huidige gebruiker en gekoppelde medewerker
 - `GET /api/employees/me/status`: eigen check-instatus en laatste klokmoment
-- `POST /api/scan`: check-in / check-out, alleen voor scannerverkeer met `X-DEVICE-TOKEN`
+- `POST /api/scan`: check-in / check-out, alleen voor scannerverkeer met `X-DEVICE-TOKEN` en rate limiting per device
 - `GET /api/employees`: teamoverzicht
 - `GET /api/employees/{id}/history`: historie
 - `POST /api/employees/{id}/regenerate-qr`: badge-rotatie
