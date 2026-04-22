@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { AuthShell } from '../../../shared/ui/AuthShell';
 import { Feedback } from '../../../shared/ui/Feedback';
-import { clearAuthToken, getAuthToken, getMyStatus, login, me } from '../../../shared/api/client';
-import { formatDateTime } from '../../../shared/utils/dateTime';
+import { clearAuthToken, getAuthToken, getMyHistory, getMyStatus, login, me } from '../../../shared/api/client';
+import { formatClockTime, formatDate, formatDateTime, formatDuration } from '../../../shared/utils/dateTime';
 
 const DEMO_ACCOUNTS = [
   {
@@ -13,12 +13,21 @@ const DEMO_ACCOUNTS = [
   }
 ];
 
+const EMPTY_HISTORY = {
+  summary: {
+    weekMinutes: 0,
+    activeSessionMinutes: null
+  },
+  entries: []
+};
+
 export function EmployeeApp() {
   const [authStatus, setAuthStatus] = useState('idle');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [sessionUser, setSessionUser] = useState(null);
   const [employee, setEmployee] = useState(null);
   const [selfStatus, setSelfStatus] = useState(null);
+  const [historyData, setHistoryData] = useState(EMPTY_HISTORY);
   const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
@@ -34,9 +43,14 @@ export function EmployeeApp() {
     setAuthStatus('loading');
     const session = await me();
     const nextStatus = await getMyStatus();
+    const nextHistory = await getMyHistory();
     setSessionUser(session.user);
     setEmployee(session.employee);
     setSelfStatus(nextStatus);
+    setHistoryData({
+      summary: nextHistory.summary,
+      entries: nextHistory.entries
+    });
     setAuthStatus('authenticated');
   }
 
@@ -46,6 +60,7 @@ export function EmployeeApp() {
       setSessionUser(null);
       setEmployee(null);
       setSelfStatus(null);
+      setHistoryData(EMPTY_HISTORY);
       setAuthStatus('unauthenticated');
     }
 
@@ -79,6 +94,7 @@ export function EmployeeApp() {
     setSessionUser(null);
     setEmployee(null);
     setSelfStatus(null);
+    setHistoryData(EMPTY_HISTORY);
     setFeedback(null);
     setAuthStatus('unauthenticated');
   }
@@ -100,6 +116,8 @@ export function EmployeeApp() {
     );
   }
 
+  const hasActiveSession = selfStatus?.status === 'IN';
+
   return (
     <div className="page-shell employee-shell">
       <section className="employee-frame">
@@ -107,7 +125,7 @@ export function EmployeeApp() {
           <div>
             <p className="eyebrow">TimeSignal</p>
             <h1 className="app-title employee-title">Mijn badge</h1>
-            <p className="app-subtitle">Self-service overzicht voor badge, status en laatste activiteit.</p>
+            <p className="app-subtitle">Self-service overzicht voor badge, status, laatste activiteit en persoonlijke historie.</p>
           </div>
           <button type="button" className="secondary-button" onClick={handleLogout}>
             Uitloggen
@@ -149,6 +167,50 @@ export function EmployeeApp() {
               </article>
             </div>
           </div>
+        </section>
+
+        <section className="panel employee-history-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Mijn historie</h2>
+              <p className="panel-copy">Bekijk je geregistreerde tijd deze week, je lopende sessie en de meest recente klokmomenten.</p>
+            </div>
+          </div>
+
+          <div className="summary-grid">
+            <article className="summary-card">
+              <p className="summary-label">Totaal deze week</p>
+              <p className="summary-value">{formatDuration(historyData.summary.weekMinutes)}</p>
+              <p className="summary-meta">Geregistreerde tijd in de lopende week</p>
+            </article>
+            <article className="summary-card">
+              <p className="summary-label">Actieve sessie</p>
+              <p className="summary-value">{hasActiveSession ? formatDuration(historyData.summary.activeSessionMinutes) : '--'}</p>
+              <p className="summary-meta">{hasActiveSession ? 'Lopende dienst' : 'Geen actieve dienst'}</p>
+            </article>
+          </div>
+
+          {0 === historyData.entries.length ? (
+            <div className="history-empty">Nog geen persoonlijke klokmomenten geregistreerd.</div>
+          ) : (
+            <div className="history-list">
+              {historyData.entries.map((entry) => (
+                <article className="history-item" key={entry.id}>
+                  <div className={`history-icon ${entry.action === 'checked_in' ? 'history-icon-in' : ''}`}>
+                    {entry.action === 'checked_in' ? 'IN' : 'OUT'}
+                  </div>
+                  <div className="history-copy">
+                    <h3>{entry.action === 'checked_in' ? 'Ingeklokt' : 'Uitgeklokt'}</h3>
+                    <p>{`${employee?.name ?? 'Medewerker'} op ${entry.location}`}</p>
+                  </div>
+                  <div className="history-meta">
+                    <span className={`history-badge history-badge-${entry.state}`}>{entry.stateLabel}</span>
+                    <span>{`${formatDate(entry.timestamp)} ${formatClockTime(entry.timestamp)}`}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </section>
     </div>

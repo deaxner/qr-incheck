@@ -290,6 +290,22 @@ class ApiControllerTest extends WebTestCase
         self::assertNotNull($payload['lastClock']);
     }
 
+    public function testEmployeeSelfHistoryEndpointReturnsOwnHistory(): void
+    {
+        $this->createEmployee('Alice Janssen', 'ALICE-DEMO-001');
+        self::ensureKernelShutdown();
+        $client = $this->createAuthenticatedClient('alice@timesignal.demo', 'User123!');
+
+        $this->requestScan($client, 'ALICE-DEMO-001');
+        $client->request('GET', '/api/employees/me/history');
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('Alice Janssen', $payload['employee']['name']);
+        self::assertCount(1, $payload['entries']);
+        self::assertSame('checked_in', $payload['entries'][0]['action']);
+    }
+
     private function createEmployee(
         string $name,
         string $qrCode,

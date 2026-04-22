@@ -52,6 +52,26 @@ class EmployeeController extends AbstractController
         return $this->json($employeeSelfStatusService->getForEmployee($employee));
     }
 
+    #[Route('/me/history', name: 'api_employees_me_history', methods: ['GET'])]
+    public function selfHistory(
+        \Symfony\Component\HttpFoundation\Request $request,
+        EmployeeRepository $employeeRepository,
+        EmployeeHistoryService $employeeHistoryService,
+        AuthContext $authContext,
+    ): JsonResponse {
+        $user = $authContext->requireUser($request);
+        $employee = $employeeRepository->find($user->employeeId);
+
+        if (!$employee) {
+            return $this->json([
+                'code' => 'employee_not_found',
+                'message' => 'Medewerker niet gevonden.',
+            ], 404);
+        }
+
+        return $this->json($employeeHistoryService->getForEmployee($employee));
+    }
+
     #[Route('/{id}/history', name: 'api_employees_history', methods: ['GET'])]
     public function history(
         \Symfony\Component\HttpFoundation\Request $request,

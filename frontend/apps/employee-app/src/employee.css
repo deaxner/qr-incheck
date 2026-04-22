@@ -25,6 +25,11 @@
   gap: 24px;
 }
 
+.employee-history-panel {
+  display: grid;
+  gap: 20px;
+}
+
 .employee-hero {
   align-items: start;
   display: flex;
@@ -53,6 +58,14 @@
 .employee-detail-stack {
   display: grid;
   gap: 16px;
+}
+
+.history-empty {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  color: var(--muted);
+  padding: 24px;
 }
 
 .status-badge-active {

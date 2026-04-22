@@ -120,6 +120,14 @@ export async function getMyStatus() {
   return parseResponse(response);
 }
 
+export async function getMyHistory() {
+  const response = await fetch('/api/employees/me/history', {
+    headers: createHeaders()
+  });
+
+  return parseResponse(response);
+}
+
 export async function scan(code, { deviceToken } = {}) {
   const response = await fetch('/api/scan', {
     body: JSON.stringify({ code }),

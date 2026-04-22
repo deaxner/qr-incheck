@@ -37,6 +37,33 @@ describe('EmployeeApp', () => {
           status: 'IN',
           lastClock: '2026-04-21T09:00:00Z'
         })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          employee: {
+            id: 1,
+            name: 'Alice Janssen',
+            qrCode: 'ALICE-DEMO-001',
+            status: 'checked_in',
+            statusLabel: 'Ingecheckt',
+            profile: { department: 'Product Engineering', employmentType: 'Full-time', location: 'Main Entrance' }
+          },
+          summary: {
+            weekMinutes: 420,
+            activeSessionMinutes: 60
+          },
+          entries: [
+            {
+              id: '12-in',
+              action: 'checked_in',
+              timestamp: '2026-04-21T09:00:00Z',
+              location: 'Main Entrance',
+              state: 'onsite',
+              stateLabel: 'Ingeklokt'
+            }
+          ]
+        })
       });
 
     vi.stubGlobal('fetch', fetchMock);
@@ -47,10 +74,13 @@ describe('EmployeeApp', () => {
 
     await waitFor(() => expect(screen.getByText('Aanwezig')).toBeInTheDocument());
     expect(screen.getByText('ALICE-DEMO-001')).toBeInTheDocument();
+    expect(screen.getByText('Mijn historie')).toBeInTheDocument();
+    expect(screen.getByText('7u 00m')).toBeInTheDocument();
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       '/api/auth/login',
       '/api/auth/me',
-      '/api/employees/me/status'
+      '/api/employees/me/status',
+      '/api/employees/me/history'
     ]);
   });
 });
