@@ -2,6 +2,7 @@
 
 namespace App\Employees\Application;
 
+use App\Entity\Employee;
 use App\Repository\EmployeeRepository;
 use App\Repository\TimeEntryRepository;
 
@@ -25,35 +26,53 @@ class EmployeeOverviewService
         $overview = [];
 
         foreach ($employees as $employee) {
-            $employeeId = $employee->getId();
-            $openEntry = $openEntries[$employeeId] ?? null;
-            $latestEntry = $latestEntries[$employeeId] ?? null;
-            $status = $openEntry ? 'checked_in' : 'checked_out';
-            $lastActionAt = null;
-
-            if ($openEntry) {
-                $lastActionAt = $openEntry->getCheckInAt()->format('Y-m-d H:i:s T');
-            } elseif ($latestEntry && $latestEntry->getCheckOutAt()) {
-                $lastActionAt = $latestEntry->getCheckOutAt()->format('Y-m-d H:i:s T');
-            } elseif ($latestEntry) {
-                $lastActionAt = $latestEntry->getCheckInAt()->format('Y-m-d H:i:s T');
-            }
-
-            $overview[] = [
-                'id' => $employeeId,
-                'name' => $employee->getName(),
-                'qrCode' => $employee->getQrCode(),
-                'status' => $status,
-                'statusLabel' => 'checked_in' === $status ? 'Ingecheckt' : 'Uitgecheckt',
-                'lastActionAt' => $lastActionAt,
-                'profile' => [
-                    'department' => $employee->getDepartment(),
-                    'employmentType' => $employee->getEmploymentType(),
-                    'location' => $employee->getLocation(),
-                ],
-            ];
+            $overview[] = $this->buildOverviewEntry(
+                $employee,
+                $openEntries[$employee->getId()] ?? null,
+                $latestEntries[$employee->getId()] ?? null,
+            );
         }
 
         return $overview;
+    }
+
+    /**
+     * @return array{id:int,name:string,qrCode:string,status:string,statusLabel:string,lastActionAt:?string,profile:array{department:string,employmentType:string,location:string}}
+     */
+    public function getOverviewForEmployee(Employee $employee): array
+    {
+        return $this->buildOverviewEntry(
+            $employee,
+            $this->timeEntryRepository->findOpenEntryForEmployee($employee),
+            $this->timeEntryRepository->findLatestEntriesIndexedByEmployeeIds([$employee->getId()])[$employee->getId()] ?? null,
+        );
+    }
+
+    private function buildOverviewEntry(Employee $employee, ?\App\Entity\TimeEntry $openEntry, ?\App\Entity\TimeEntry $latestEntry): array
+    {
+        $status = $openEntry ? 'checked_in' : 'checked_out';
+        $lastActionAt = null;
+
+        if ($openEntry) {
+            $lastActionAt = $openEntry->getCheckInAt()->format('Y-m-d H:i:s T');
+        } elseif ($latestEntry && $latestEntry->getCheckOutAt()) {
+            $lastActionAt = $latestEntry->getCheckOutAt()->format('Y-m-d H:i:s T');
+        } elseif ($latestEntry) {
+            $lastActionAt = $latestEntry->getCheckInAt()->format('Y-m-d H:i:s T');
+        }
+
+        return [
+            'id' => $employee->getId(),
+            'name' => $employee->getName(),
+            'qrCode' => $employee->getQrCode(),
+            'status' => $status,
+            'statusLabel' => 'checked_in' === $status ? 'Ingecheckt' : 'Uitgecheckt',
+            'lastActionAt' => $lastActionAt,
+            'profile' => [
+                'department' => $employee->getDepartment(),
+                'employmentType' => $employee->getEmploymentType(),
+                'location' => $employee->getLocation(),
+            ],
+        ];
     }
 }

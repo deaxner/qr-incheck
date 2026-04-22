@@ -10,7 +10,9 @@ import {
   me,
   regenerateQrCode
 } from '../../../shared/api/client';
+import { subscribeToTopics } from '../../../shared/api/mercure';
 import { buildTeamEntries } from '../../../shared/utils/employee';
+import { formatDateTime } from '../../../shared/utils/dateTime';
 import { TeamOverviewView } from './TeamOverviewView';
 import { HistoryView } from './HistoryView';
 
@@ -21,6 +23,8 @@ const EMPTY_HISTORY = {
   },
   entries: []
 };
+
+const MAX_ACTIVITY_ITEMS = 6;
 
 const DEMO_ACCOUNTS = [
   {
@@ -40,6 +44,9 @@ export function AdminApp() {
   const [feedback, setFeedback] = useState(null);
   const [regeneratingId, setRegeneratingId] = useState(null);
   const [activeTab, setActiveTab] = useState('team');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
 
   const teamEntries = useMemo(() => buildTeamEntries(employees), [employees]);
   const currentEmployee = teamEntries.find((employee) => employee.id === currentEmployeeId) ?? teamEntries[0] ?? null;
@@ -55,6 +62,44 @@ export function AdminApp() {
     bootstrap().catch(handleAuthError);
   }, []);
 
+  useEffect(() => {
+    if (authStatus !== 'authenticated' || 0 === employees.length) {
+      return undefined;
+    }
+
+    return subscribeToTopics(
+      employees.map((employee) => `/employees/${employee.id}`),
+      {
+        onMessage: (payload) => {
+          if (!payload?.employee?.id) {
+            return;
+          }
+
+          setEmployees((currentEmployees) => currentEmployees.map((employee) => (
+            employee.id === payload.employee.id ? payload.employee : employee
+          )));
+
+          if (currentEmployeeId === payload.employee.id && payload.history) {
+            setHistoryData({
+              summary: payload.history.summary,
+              entries: payload.history.entries
+            });
+          }
+
+          if (payload.activity) {
+            setRecentActivity((currentActivity) => {
+              const nextActivity = [payload.activity, ...currentActivity.filter((entry) => entry.id !== payload.activity.id)];
+
+              return nextActivity.slice(0, MAX_ACTIVITY_ITEMS);
+            });
+          }
+
+          setLastRefreshedAt(new Date().toISOString());
+        }
+      }
+    );
+  }, [authStatus, currentEmployeeId, employees]);
+
   async function bootstrap(preferredEmployeeId = null) {
     setAuthStatus('loading');
     const session = await me();
@@ -64,6 +109,8 @@ export function AdminApp() {
   }
 
   async function refreshEmployees(preferredEmployeeId = null) {
+    setIsRefreshing(true);
+
     const nextEmployees = await getEmployees();
     setEmployees(nextEmployees);
     const selectedEmployeeId = nextEmployees.some((employee) => employee.id === preferredEmployeeId)
@@ -77,6 +124,9 @@ export function AdminApp() {
     } else {
       setHistoryData(EMPTY_HISTORY);
     }
+
+    setLastRefreshedAt(new Date().toISOString());
+    setIsRefreshing(false);
 
     return nextEmployees;
   }
@@ -96,8 +146,12 @@ export function AdminApp() {
       setEmployees([]);
       setCurrentEmployeeId(null);
       setHistoryData(EMPTY_HISTORY);
+      setLastRefreshedAt(null);
+      setRecentActivity([]);
       setAuthStatus('unauthenticated');
     }
+
+    setIsRefreshing(false);
 
     setFeedback({
       kind: 'error',
@@ -130,6 +184,8 @@ export function AdminApp() {
     setEmployees([]);
     setCurrentEmployeeId(null);
     setHistoryData(EMPTY_HISTORY);
+    setLastRefreshedAt(null);
+    setRecentActivity([]);
     setFeedback(null);
     setAuthStatus('unauthenticated');
   }
@@ -243,6 +299,10 @@ export function AdminApp() {
               employees={teamEntries}
               checkedInCount={checkedInCount}
               checkedOutCount={checkedOutCount}
+              isRefreshing={isRefreshing}
+              lastRefreshedLabel={lastRefreshedAt ? formatDateTime(lastRefreshedAt) : 'Nog geen live update'}
+              liveModeLabel="Live updates via Mercure"
+              recentActivity={recentActivity}
               regeneratingId={regeneratingId}
               selectedEmployeeId={currentEmployee?.id ?? null}
               onRefresh={handleRefresh}

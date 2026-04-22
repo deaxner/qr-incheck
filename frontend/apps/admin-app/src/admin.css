@@ -106,6 +106,92 @@
   padding: 14px 16px;
 }
 
+.team-sync-status {
+  font-size: 0.92rem;
+}
+
+.activity-panel {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 24px;
+}
+
+.activity-panel-heading {
+  margin-bottom: 16px;
+}
+
+.activity-empty {
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  color: var(--muted);
+  padding: 18px;
+}
+
+.activity-feed {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-item {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: auto 1fr auto;
+  padding: 16px 18px;
+}
+
+.activity-icon {
+  align-items: center;
+  border-radius: 14px;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  height: 44px;
+  justify-content: center;
+  letter-spacing: 0.08em;
+  min-width: 52px;
+  text-transform: uppercase;
+}
+
+.activity-icon-checked_in {
+  background: rgba(27, 152, 108, 0.12);
+  color: #0c6f4b;
+}
+
+.activity-icon-checked_out {
+  background: rgba(188, 84, 33, 0.12);
+  color: #9a4419;
+}
+
+.activity-icon-badge_regenerated {
+  background: rgba(33, 92, 188, 0.12);
+  color: #1f4d97;
+}
+
+.activity-copy h4,
+.activity-copy p,
+.activity-meta {
+  margin: 0;
+}
+
+.activity-copy h4 {
+  font-size: 1rem;
+}
+
+.activity-copy p,
+.activity-meta {
+  color: var(--muted);
+}
+
+.activity-meta {
+  font-size: 0.92rem;
+  text-align: right;
+}
+
 @media (max-width: 768px) {
   .app-shell {
     border-radius: 24px;
@@ -126,5 +212,13 @@
   .employee-switcher {
     min-width: 0;
     width: 100%;
+  }
+
+  .activity-item {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-meta {
+    text-align: left;
   }
 }

@@ -67,6 +67,8 @@ De medewerker gebruikt de Employee App voor de eigen badge en huidige inchecksta
 - In-product login met demo-accounts voor admin en medewerker
 - Backend als bron van waarheid voor businessregels en productdata
 - Device-token beveiligde scannerflow met rate limiting per device
+- Live updates via Mercure in admin- en employee-app
+- Admin console met live activity feed voor scans en badgevernieuwing
 - Kleine beheerflow voor badge-rotatie
 - Gerichte tests op kernlogica en kritieke UI/API-flow
 
@@ -88,6 +90,7 @@ Technologiekeuzes zijn bewust conventioneel gehouden:
 
 - `Symfony` + `Doctrine`
 - `React` + `Vite`
+- `Mercure` voor realtime UI-updates
 - `Docker` voor consistente runtime
 
 De focus ligt op denken en structureren, niet op infrastructuurcomplexiteit.
@@ -96,7 +99,7 @@ De focus ligt op denken en structureren, niet op infrastructuurcomplexiteit.
 
 - `backend/`: Symfony API, domeinlogica, entities, tests, migrations
 - `frontend/`: npm workspace met `scanner-app`, `admin-app`, `employee-app` en gedeelde frontend-code
-- `compose.yaml`: containers voor scanner, admin, employee, backend en database
+- `compose.yaml`: containers voor scanner, admin, employee, backend, Mercure en database
 - `docs/adr/`: vastgelegde architectuurbesluiten
 - `memory-bank/`: ontwerpprincipes, context en v2-doelarchitectuur
 
@@ -116,13 +119,15 @@ De kern van die richting:
 1. Gebruik Scanner App om een badgecode via camera of handmatige fallback te registreren
 2. Log in als admin in Admin App
 3. Bekijk als admin historie en teamstatus of roteer badges
-4. Log in als medewerker in Employee App om eigen badge en status te bekijken
+4. Bekijk live statusupdates in Admin App en Employee App zodra scans of badge-rotaties plaatsvinden
+5. Log in als medewerker in Employee App om eigen badge, status en persoonlijke historie te bekijken
 
 ## API-overzicht
 
 - `POST /api/auth/login`: login met demo-account
 - `GET /api/auth/me`: huidige gebruiker en gekoppelde medewerker
 - `GET /api/employees/me/status`: eigen check-instatus en laatste klokmoment
+- `GET /api/employees/me/history`: eigen historie en weekoverzicht
 - `POST /api/scan`: check-in / check-out, alleen voor scannerverkeer met `X-DEVICE-TOKEN` en rate limiting per device
 - `GET /api/employees`: teamoverzicht
 - `GET /api/employees/{id}/history`: historie
@@ -154,6 +159,7 @@ In productie zou dit worden vervangen door secure secrets management.
 - MySQL voor runtime, SQLite voor tests
 - Focus op productlogica boven UI polish
 - JWT-authenticatie voor admin/medewerker en apart device-token plus rate limiting voor scanner
+- Mercure voor zichtbare realtime updates zonder custom websocket-infrastructuur
 - Demo-data wordt automatisch gezaaid bij een lege database om de app direct bruikbaar te maken
 
 ## Richting productie

@@ -30,6 +30,10 @@
   gap: 20px;
 }
 
+.employee-live-status {
+  font-size: 0.92rem;
+}
+
 .employee-hero {
   align-items: start;
   display: flex;

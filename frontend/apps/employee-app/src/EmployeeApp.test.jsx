@@ -2,10 +2,24 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EmployeeApp } from './EmployeeApp';
 
+class MockEventSource {
+  static instances = [];
+
+  constructor(url) {
+    this.url = url;
+    this.onmessage = null;
+    this.onerror = null;
+    MockEventSource.instances.push(this);
+  }
+
+  close() {}
+}
+
 describe('EmployeeApp', () => {
   afterEach(() => {
     cleanup();
     window.localStorage.clear();
+    MockEventSource.instances = [];
     vi.restoreAllMocks();
   });
 
@@ -67,6 +81,7 @@ describe('EmployeeApp', () => {
       });
 
     vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('EventSource', MockEventSource);
 
     render(<EmployeeApp />);
 
@@ -76,11 +91,126 @@ describe('EmployeeApp', () => {
     expect(screen.getByText('ALICE-DEMO-001')).toBeInTheDocument();
     expect(screen.getByText('Mijn historie')).toBeInTheDocument();
     expect(screen.getByText('7u 00m')).toBeInTheDocument();
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(MockEventSource.instances[0].url).toContain('topic=%2Femployees%2F1');
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       '/api/auth/login',
       '/api/auth/me',
       '/api/employees/me/status',
       '/api/employees/me/history'
     ]);
+  });
+
+  it('applies live Mercure updates to employee self-service data', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: 'user-token',
+          user: { id: 'demo-user-alice', name: 'Alice Janssen', role: 'user', employeeId: 1 }
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          user: { id: 'demo-user-alice', name: 'Alice Janssen', role: 'user', employeeId: 1 },
+          employee: {
+            id: 1,
+            name: 'Alice Janssen',
+            qrCode: 'ALICE-DEMO-001',
+            profile: { department: 'Product Engineering', employmentType: 'Full-time', location: 'Main Entrance' }
+          }
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'IN',
+          lastClock: '2026-04-21T09:00:00Z'
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          employee: {
+            id: 1,
+            name: 'Alice Janssen',
+            qrCode: 'ALICE-DEMO-001',
+            status: 'checked_in',
+            statusLabel: 'Ingecheckt',
+            profile: { department: 'Product Engineering', employmentType: 'Full-time', location: 'Main Entrance' }
+          },
+          summary: {
+            weekMinutes: 420,
+            activeSessionMinutes: 60
+          },
+          entries: [
+            {
+              id: '12-in',
+              action: 'checked_in',
+              timestamp: '2026-04-21T09:00:00Z',
+              location: 'Main Entrance',
+              state: 'onsite',
+              stateLabel: 'Ingeklokt'
+            }
+          ]
+        })
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('EventSource', MockEventSource);
+
+    render(<EmployeeApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Medewerker/ }));
+
+    await waitFor(() => expect(screen.getByText('ALICE-DEMO-001')).toBeInTheDocument());
+
+    MockEventSource.instances[0].onmessage({
+      data: JSON.stringify({
+        employee: {
+          id: 1,
+          name: 'Alice Janssen',
+          qrCode: 'ALICE-DEMO-UPDATED',
+          status: 'checked_out',
+          statusLabel: 'Uitgecheckt',
+          lastActionAt: '2026-04-21T17:00:00Z',
+          profile: { department: 'Product Engineering', employmentType: 'Full-time', location: 'Main Entrance' }
+        },
+        selfStatus: {
+          status: 'OUT',
+          lastClock: '2026-04-21T17:00:00Z'
+        },
+        history: {
+          employee: {
+            id: 1,
+            name: 'Alice Janssen',
+            qrCode: 'ALICE-DEMO-UPDATED',
+            status: 'checked_out',
+            statusLabel: 'Uitgecheckt',
+            profile: { department: 'Product Engineering', employmentType: 'Full-time', location: 'Main Entrance' }
+          },
+          summary: {
+            weekMinutes: 480,
+            activeSessionMinutes: null
+          },
+          entries: [
+            {
+              id: '12-out',
+              action: 'checked_out',
+              timestamp: '2026-04-21T17:00:00Z',
+              location: 'Main Entrance',
+              state: 'offsite',
+              stateLabel: 'Uitgeklokt'
+            }
+          ]
+        }
+      })
+    });
+
+    await waitFor(() => expect(screen.getAllByText('Uitgeklokt').length).toBeGreaterThan(0));
+    expect(screen.getByText('ALICE-DEMO-UPDATED')).toBeInTheDocument();
+    expect(screen.getByText('8u 00m')).toBeInTheDocument();
   });
 });

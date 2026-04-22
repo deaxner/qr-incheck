@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { AuthShell } from '../../../shared/ui/AuthShell';
 import { Feedback } from '../../../shared/ui/Feedback';
+import { subscribeToTopics } from '../../../shared/api/mercure';
 import { clearAuthToken, getAuthToken, getMyHistory, getMyStatus, login, me } from '../../../shared/api/client';
 import { formatClockTime, formatDate, formatDateTime, formatDuration } from '../../../shared/utils/dateTime';
 
@@ -29,6 +30,7 @@ export function EmployeeApp() {
   const [selfStatus, setSelfStatus] = useState(null);
   const [historyData, setHistoryData] = useState(EMPTY_HISTORY);
   const [feedback, setFeedback] = useState(null);
+  const [lastRealtimeAt, setLastRealtimeAt] = useState(null);
 
   useEffect(() => {
     if (!getAuthToken()) {
@@ -38,6 +40,42 @@ export function EmployeeApp() {
 
     bootstrap().catch(handleAuthError);
   }, []);
+
+  useEffect(() => {
+    if (authStatus !== 'authenticated' || !employee?.id) {
+      return undefined;
+    }
+
+    return subscribeToTopics(
+      [`/employees/${employee.id}`],
+      {
+        onMessage: (payload) => {
+          if (!payload?.employee?.id || payload.employee.id !== employee.id) {
+            return;
+          }
+
+          setEmployee((currentEmployee) => ({
+            ...currentEmployee,
+            ...payload.employee,
+            profile: payload.employee.profile ?? currentEmployee?.profile
+          }));
+
+          if (payload.selfStatus) {
+            setSelfStatus(payload.selfStatus);
+          }
+
+          if (payload.history) {
+            setHistoryData({
+              summary: payload.history.summary,
+              entries: payload.history.entries
+            });
+          }
+
+          setLastRealtimeAt(new Date().toISOString());
+        }
+      }
+    );
+  }, [authStatus, employee?.id]);
 
   async function bootstrap() {
     setAuthStatus('loading');
@@ -61,6 +99,7 @@ export function EmployeeApp() {
       setEmployee(null);
       setSelfStatus(null);
       setHistoryData(EMPTY_HISTORY);
+      setLastRealtimeAt(null);
       setAuthStatus('unauthenticated');
     }
 
@@ -95,6 +134,7 @@ export function EmployeeApp() {
     setEmployee(null);
     setSelfStatus(null);
     setHistoryData(EMPTY_HISTORY);
+    setLastRealtimeAt(null);
     setFeedback(null);
     setAuthStatus('unauthenticated');
   }
@@ -126,6 +166,9 @@ export function EmployeeApp() {
             <p className="eyebrow">TimeSignal</p>
             <h1 className="app-title employee-title">Mijn badge</h1>
             <p className="app-subtitle">Self-service overzicht voor badge, status, laatste activiteit en persoonlijke historie.</p>
+            <p className="panel-copy employee-live-status">
+              Live updates via Mercure | Laatste update: {lastRealtimeAt ? formatDateTime(lastRealtimeAt) : 'Nog geen live update'}
+            </p>
           </div>
           <button type="button" className="secondary-button" onClick={handleLogout}>
             Uitloggen

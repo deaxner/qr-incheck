@@ -1,9 +1,14 @@
 import React from 'react';
+import { formatDateTime } from '../../../shared/utils/dateTime';
 
 export function TeamOverviewView({
   employees,
   checkedInCount,
   checkedOutCount,
+  isRefreshing,
+  lastRefreshedLabel,
+  liveModeLabel,
+  recentActivity,
   regeneratingId,
   selectedEmployeeId,
   onRefresh,
@@ -17,9 +22,12 @@ export function TeamOverviewView({
           <div>
             <h2>Manager dashboard</h2>
             <p className="panel-copy">Compact teamoverzicht met actuele clocking-status en directe badgevernieuwing.</p>
+            <p className="panel-copy team-sync-status">
+              {isRefreshing ? 'Statusmonitor ververst nu.' : `${liveModeLabel} | Laatste update: ${lastRefreshedLabel}`}
+            </p>
           </div>
-          <button className="secondary-button" type="button" onClick={onRefresh}>
-            Ververs status
+          <button className="secondary-button" type="button" onClick={onRefresh} disabled={isRefreshing}>
+            {isRefreshing ? 'Verversen...' : 'Ververs status'}
           </button>
         </div>
 
@@ -87,6 +95,39 @@ export function TeamOverviewView({
             </article>
           ))}
         </div>
+
+        <section className="activity-panel">
+          <div className="panel-heading activity-panel-heading">
+            <div>
+              <h3>Live activity</h3>
+              <p className="panel-copy">Laat in realtime zien wat er binnenkomt vanuit scans en badgebeheer.</p>
+            </div>
+          </div>
+
+          {0 === recentActivity.length ? (
+            <div className="activity-empty">Nog geen realtime activiteit ontvangen.</div>
+          ) : (
+            <div className="activity-feed">
+              {recentActivity.map((activity) => (
+                <article className="activity-item" key={activity.id}>
+                  <div className={`activity-icon activity-icon-${activity.type}`}>
+                    {'checked_in' === activity.type ? 'IN' : ('checked_out' === activity.type ? 'OUT' : 'QR')}
+                  </div>
+                  <div className="activity-copy">
+                    <h4>{activity.label}</h4>
+                    <p>
+                      {activity.employeeName} op {activity.location}
+                      {activity.qrCode ? ` | ${activity.qrCode}` : ''}
+                    </p>
+                  </div>
+                  <div className="activity-meta">
+                    {formatDateTime(activity.timestamp)}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </section>
     </section>
   );
