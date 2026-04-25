@@ -6,9 +6,12 @@ use App\Auth\Application\AuthContext;
 use App\Auth\Application\DemoUserStore;
 use App\Auth\Application\JwtService;
 use App\Auth\Application\ScannerDeviceTokenService;
+use App\Shared\Http\ApiProblemResponseFactory;
+use App\Shared\Http\OperationalEventLogger;
+use App\Shared\Http\RequestContext;
+use App\Shared\Observability\MetricsCollector;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
@@ -19,6 +22,9 @@ class JwtAuthSubscriber implements EventSubscriberInterface
         private readonly DemoUserStore $demoUserStore,
         private readonly ScannerDeviceTokenService $scannerDeviceTokenService,
         private readonly RateLimiterFactory $scanRequestLimiter,
+        private readonly ApiProblemResponseFactory $apiProblemResponseFactory,
+        private readonly OperationalEventLogger $operationalEventLogger,
+        private readonly MetricsCollector $metricsCollector,
     ) {
     }
 
@@ -46,19 +52,35 @@ class JwtAuthSubscriber implements EventSubscriberInterface
             $deviceToken = $request->headers->get('X-DEVICE-TOKEN');
 
             if (null === $deviceToken || '' === trim($deviceToken)) {
-                $event->setResponse(new JsonResponse([
-                    'code' => 'invalid_device_token',
-                    'message' => 'Scanner device token ontbreekt.',
-                ], 401));
+                $this->operationalEventLogger->logSecurity('scan.request.rejected', [
+                    'requestId' => RequestContext::getRequestId($request),
+                    'reason' => 'missing_device_token',
+                ]);
+                $this->metricsCollector->incrementCounter('qr_scan_requests_total', ['outcome' => 'invalid_device_token']);
+
+                $event->setResponse($this->apiProblemResponseFactory->create(
+                    $request,
+                    'invalid_device_token',
+                    'Scanner device token ontbreekt.',
+                    401,
+                ));
 
                 return;
             }
 
             if (!$this->scannerDeviceTokenService->isValid($deviceToken)) {
-                $event->setResponse(new JsonResponse([
-                    'code' => 'invalid_device_token',
-                    'message' => 'Scanner device token is ongeldig.',
-                ], 401));
+                $this->operationalEventLogger->logSecurity('scan.request.rejected', [
+                    'requestId' => RequestContext::getRequestId($request),
+                    'reason' => 'invalid_device_token',
+                ]);
+                $this->metricsCollector->incrementCounter('qr_scan_requests_total', ['outcome' => 'invalid_device_token']);
+
+                $event->setResponse($this->apiProblemResponseFactory->create(
+                    $request,
+                    'invalid_device_token',
+                    'Scanner device token is ongeldig.',
+                    401,
+                ));
 
                 return;
             }
@@ -66,10 +88,18 @@ class JwtAuthSubscriber implements EventSubscriberInterface
             $limit = $this->scanRequestLimiter->create(trim($deviceToken))->consume(1);
 
             if (!$limit->isAccepted()) {
-                $event->setResponse(new JsonResponse([
-                    'code' => 'rate_limited',
-                    'message' => 'Er worden te veel scans tegelijk verwerkt. Probeer het zo opnieuw.',
-                ], 429));
+                $this->operationalEventLogger->logSecurity('scan.request.throttled', [
+                    'requestId' => RequestContext::getRequestId($request),
+                    'reason' => 'device_rate_limited',
+                ]);
+                $this->metricsCollector->incrementCounter('qr_scan_requests_total', ['outcome' => 'rate_limited']);
+
+                $event->setResponse($this->apiProblemResponseFactory->create(
+                    $request,
+                    'rate_limited',
+                    'Er worden te veel scans tegelijk verwerkt. Probeer het zo opnieuw.',
+                    429,
+                ));
 
                 return;
             }
@@ -80,10 +110,18 @@ class JwtAuthSubscriber implements EventSubscriberInterface
         $authorization = $request->headers->get('Authorization');
 
         if (!$authorization || !str_starts_with($authorization, 'Bearer ')) {
-            $event->setResponse(new JsonResponse([
-                'code' => 'unauthorized',
-                'message' => 'Authenticatie ontbreekt.',
-            ], 401));
+            $this->operationalEventLogger->logSecurity('auth.request.rejected', [
+                'requestId' => RequestContext::getRequestId($request),
+                'reason' => 'missing_bearer_token',
+                'path' => $path,
+            ]);
+
+            $event->setResponse($this->apiProblemResponseFactory->create(
+                $request,
+                'unauthorized',
+                'Authenticatie ontbreekt.',
+                401,
+            ));
 
             return;
         }
@@ -92,10 +130,18 @@ class JwtAuthSubscriber implements EventSubscriberInterface
         $payload = $this->jwtService->decode($token);
 
         if (!$payload || !isset($payload['sub'])) {
-            $event->setResponse(new JsonResponse([
-                'code' => 'unauthorized',
-                'message' => 'Ongeldig of verlopen token.',
-            ], 401));
+            $this->operationalEventLogger->logSecurity('auth.request.rejected', [
+                'requestId' => RequestContext::getRequestId($request),
+                'reason' => 'invalid_or_expired_token',
+                'path' => $path,
+            ]);
+
+            $event->setResponse($this->apiProblemResponseFactory->create(
+                $request,
+                'unauthorized',
+                'Ongeldig of verlopen token.',
+                401,
+            ));
 
             return;
         }
@@ -103,10 +149,18 @@ class JwtAuthSubscriber implements EventSubscriberInterface
         $user = $this->demoUserStore->findById((string) $payload['sub']);
 
         if (!$user) {
-            $event->setResponse(new JsonResponse([
-                'code' => 'unauthorized',
-                'message' => 'Onbekende gebruiker.',
-            ], 401));
+            $this->operationalEventLogger->logSecurity('auth.request.rejected', [
+                'requestId' => RequestContext::getRequestId($request),
+                'reason' => 'unknown_user',
+                'path' => $path,
+            ]);
+
+            $event->setResponse($this->apiProblemResponseFactory->create(
+                $request,
+                'unauthorized',
+                'Onbekende gebruiker.',
+                401,
+            ));
 
             return;
         }

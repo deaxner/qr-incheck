@@ -10,6 +10,8 @@ parameters:
     app.timezone: '%env(APP_TIMEZONE)%'
     app.secret: '%env(APP_SECRET)%'
     app.scanner_device_token: '%env(APP_SCANNER_DEVICE_TOKEN)%'
+    app.operational_logging_enabled: '%env(bool:APP_OPERATIONAL_LOGGING_ENABLED)%'
+    app.tracing_enabled: '%env(bool:APP_TRACING_ENABLED)%'
 
 services:
     # default configuration for services in *this* file
@@ -36,6 +38,25 @@ services:
     App\Auth\Http\JwtAuthSubscriber:
         arguments:
             $scanRequestLimiter: '@limiter.scan_requests'
+
+    App\Shared\Http\OperationalEventLogger:
+        arguments:
+            $enabled: '%app.operational_logging_enabled%'
+            $httpLogger: '@monolog.logger.http'
+            $securityLogger: '@monolog.logger.security'
+            $auditLogger: '@monolog.logger.audit'
+
+    App\Shared\Observability\RequestTracingSubscriber:
+        arguments:
+            $enabled: '%app.tracing_enabled%'
+
+    App\Shared\Observability\Tracing:
+        arguments:
+            $enabled: '%app.tracing_enabled%'
+
+    App\Shared\Observability\MetricsCollector:
+        arguments:
+            $cache: '@cache.app'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

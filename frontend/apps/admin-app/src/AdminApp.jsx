@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AuthShell } from '../../../shared/ui/AuthShell';
 import { Feedback } from '../../../shared/ui/Feedback';
 import {
@@ -15,6 +15,7 @@ import { buildTeamEntries } from '../../../shared/utils/employee';
 import { formatDateTime } from '../../../shared/utils/dateTime';
 import { TeamOverviewView } from './TeamOverviewView';
 import { HistoryView } from './HistoryView';
+import { LiveActivityView } from './LiveActivityView';
 
 const EMPTY_HISTORY = {
   summary: {
@@ -47,11 +48,17 @@ export function AdminApp() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
+  const currentEmployeeIdRef = useRef(currentEmployeeId);
 
   const teamEntries = useMemo(() => buildTeamEntries(employees), [employees]);
   const currentEmployee = teamEntries.find((employee) => employee.id === currentEmployeeId) ?? teamEntries[0] ?? null;
   const checkedInCount = teamEntries.filter((employee) => employee.status === 'checked_in').length;
   const checkedOutCount = teamEntries.length - checkedInCount;
+  const employeeTopicKey = teamEntries.map((employee) => employee.id).join(',');
+
+  useEffect(() => {
+    currentEmployeeIdRef.current = currentEmployeeId;
+  }, [currentEmployeeId]);
 
   useEffect(() => {
     if (!getAuthToken()) {
@@ -67,23 +74,23 @@ export function AdminApp() {
       return undefined;
     }
 
+    const employeeTopics = teamEntries.map((employee) => `/employees/${employee.id}`);
+
     return subscribeToTopics(
-      employees.map((employee) => `/employees/${employee.id}`),
+      ['/admin/activity', ...employeeTopics],
       {
         onMessage: (payload) => {
-          if (!payload?.employee?.id) {
-            return;
-          }
+          if (payload?.employee?.id) {
+            setEmployees((currentEmployees) => currentEmployees.map((employee) => (
+              employee.id === payload.employee.id ? payload.employee : employee
+            )));
 
-          setEmployees((currentEmployees) => currentEmployees.map((employee) => (
-            employee.id === payload.employee.id ? payload.employee : employee
-          )));
-
-          if (currentEmployeeId === payload.employee.id && payload.history) {
-            setHistoryData({
-              summary: payload.history.summary,
-              entries: payload.history.entries
-            });
+            if (currentEmployeeIdRef.current === payload.employee.id && payload.history) {
+              setHistoryData({
+                summary: payload.history.summary,
+                entries: payload.history.entries
+              });
+            }
           }
 
           if (payload.activity) {
@@ -98,7 +105,7 @@ export function AdminApp() {
         }
       }
     );
-  }, [authStatus, currentEmployeeId, employees]);
+  }, [authStatus, employeeTopicKey]);
 
   async function bootstrap(preferredEmployeeId = null) {
     setAuthStatus('loading');
@@ -286,6 +293,13 @@ export function AdminApp() {
           </button>
           <button
             type="button"
+            className={activeTab === 'live' ? 'nav-button nav-button-active' : 'nav-button'}
+            onClick={() => setActiveTab('live')}
+          >
+            Live
+          </button>
+          <button
+            type="button"
             className={activeTab === 'history' ? 'nav-button nav-button-active' : 'nav-button'}
             onClick={() => setActiveTab('history')}
           >
@@ -302,12 +316,19 @@ export function AdminApp() {
               isRefreshing={isRefreshing}
               lastRefreshedLabel={lastRefreshedAt ? formatDateTime(lastRefreshedAt) : 'Nog geen live update'}
               liveModeLabel="Live updates via Mercure"
-              recentActivity={recentActivity}
               regeneratingId={regeneratingId}
               selectedEmployeeId={currentEmployee?.id ?? null}
               onRefresh={handleRefresh}
               onRegenerate={handleRegenerate}
               onSelectEmployee={handleEmployeeChange}
+            />
+          ) : null}
+
+          {activeTab === 'live' ? (
+            <LiveActivityView
+              checkedInCount={checkedInCount}
+              checkedOutCount={checkedOutCount}
+              recentActivity={recentActivity}
             />
           ) : null}
 

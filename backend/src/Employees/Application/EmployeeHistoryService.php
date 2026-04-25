@@ -4,6 +4,8 @@ namespace App\Employees\Application;
 
 use App\Entity\Employee;
 use App\Entity\TimeEntry;
+use App\Employees\Dto\EmployeeHistoryEntryView;
+use App\Employees\Dto\EmployeeHistoryView;
 use App\Repository\TimeEntryRepository;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -13,19 +15,13 @@ class EmployeeHistoryService
 
     public function __construct(
         private readonly TimeEntryRepository $timeEntryRepository,
+        private readonly EmployeeOverviewService $employeeOverviewService,
         #[Autowire('%app.timezone%')] string $appTimezone,
     ) {
         $this->timezone = new \DateTimeZone($appTimezone);
     }
 
-    /**
-     * @return array{
-     *   employee: array{id:int|null,name:string,qrCode:string,status:string,statusLabel:string,profile:array{department:string,employmentType:string,location:string}},
-     *   summary: array{weekMinutes:int,activeSessionMinutes:?int},
-     *   entries: list<array{id:string,action:string,timestamp:string,location:string,state:string,stateLabel:string}>
-     * }
-     */
-    public function getForEmployee(Employee $employee): array
+    public function getForEmployee(Employee $employee): EmployeeHistoryView
     {
         $now = new \DateTimeImmutable('now', $this->timezone);
         $openEntry = $this->timeEntryRepository->findOpenEntryForEmployee($employee);
@@ -43,47 +39,30 @@ class EmployeeHistoryService
             }
         }
 
-        usort($events, static fn (array $left, array $right) => strcmp($right['sortKey'], $left['sortKey']));
+        usort(
+            $events,
+            static fn (EmployeeHistoryEntryView $left, EmployeeHistoryEntryView $right): int => strcmp($right->sortKey, $left->sortKey),
+        );
 
-        return [
-            'employee' => [
-                'id' => $employee->getId(),
-                'name' => $employee->getName(),
-                'qrCode' => $employee->getQrCode(),
-                'status' => $openEntry ? 'checked_in' : 'checked_out',
-                'statusLabel' => $openEntry ? 'Ingecheckt' : 'Uitgecheckt',
-                'profile' => [
-                    'department' => $employee->getDepartment(),
-                    'employmentType' => $employee->getEmploymentType(),
-                    'location' => $employee->getLocation(),
-                ],
-            ],
-            'summary' => [
-                'weekMinutes' => $this->sumMinutes($weekEntries, $now),
-                'activeSessionMinutes' => $openEntry ? $this->durationInMinutes($openEntry->getCheckInAt(), $now) : null,
-            ],
-            'entries' => array_map(static function (array $event): array {
-                unset($event['sortKey']);
-
-                return $event;
-            }, $events),
-        ];
+        return new EmployeeHistoryView(
+            $this->employeeOverviewService->getOverviewForEmployee($employee),
+            $this->sumMinutes($weekEntries, $now),
+            $openEntry ? $this->durationInMinutes($openEntry->getCheckInAt(), $now) : null,
+            $events,
+        );
     }
 
-    /**
-     * @return array{id:string,action:string,timestamp:string,location:string,state:string,stateLabel:string,sortKey:string}
-     */
-    private function buildEvent(TimeEntry $entry, string $action, \DateTimeImmutable $timestamp, string $location): array
+    private function buildEvent(TimeEntry $entry, string $action, \DateTimeImmutable $timestamp, string $location): EmployeeHistoryEntryView
     {
-        return [
-            'id' => sprintf('%d-%s', $entry->getId(), 'checked_in' === $action ? 'in' : 'out'),
-            'action' => $action,
-            'timestamp' => $timestamp->format('Y-m-d H:i:s T'),
-            'location' => $location,
-            'state' => 'checked_in' === $action ? 'onsite' : 'offsite',
-            'stateLabel' => 'checked_in' === $action ? 'Ingeklokt' : 'Uitgeklokt',
-            'sortKey' => $timestamp->format('c'),
-        ];
+        return new EmployeeHistoryEntryView(
+            sprintf('%d-%s', $entry->getId(), 'checked_in' === $action ? 'in' : 'out'),
+            $action,
+            $timestamp->format('Y-m-d H:i:s T'),
+            $location,
+            'checked_in' === $action ? 'onsite' : 'offsite',
+            'checked_in' === $action ? 'Ingeklokt' : 'Uitgeklokt',
+            $timestamp->format('c'),
+        );
     }
 
     /**

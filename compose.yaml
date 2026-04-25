@@ -9,7 +9,7 @@ services:
         VITE_DEVICE_TOKEN: "scanner-demo-token"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
       mercure:
         condition: service_started
     environment:
@@ -26,7 +26,7 @@ services:
         APP_DIR: "admin-app"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
       mercure:
         condition: service_started
     environment:
@@ -43,7 +43,7 @@ services:
         APP_DIR: "employee-app"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
       mercure:
         condition: service_started
     environment:
@@ -64,13 +64,98 @@ services:
       APP_TIMEZONE: Europe/Amsterdam
       APP_SCANNER_DEVICE_TOKEN: scanner-demo-token
       APP_REALTIME_ENABLED: 1
+      APP_OPERATIONAL_LOGGING_ENABLED: 1
+      APP_TRACING_ENABLED: 1
+      OTEL_PHP_AUTOLOAD_ENABLED: "true"
+      OTEL_SERVICE_NAME: qr-incheck-backend
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_PROPAGATORS: tracecontext,baggage
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/json
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
       MERCURE_URL: http://mercure/.well-known/mercure
       MERCURE_PUBLIC_URL: http://localhost/.well-known/mercure
       MERCURE_JWT_SECRET: demo-mercure-secret
       DATABASE_URL: mysql://qr_user:qr_password@db:3306/qr_incheck?serverVersion=8.0.36&charset=utf8mb4
       TZ: Europe/Amsterdam
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost/healthz') === false ? 1 : 0);"]
+      interval: 10s
+      retries: 6
+      timeout: 5s
+      start_period: 20s
     ports:
       - "8082:80"
+
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["observability"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    profiles: ["observability"]
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./ops/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    profiles: ["observability"]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    profiles: ["observability"]
+    command:
+      - "--config=/etc/otelcol-contrib/config.yaml"
+    depends_on:
+      jaeger:
+        condition: service_started
+    volumes:
+      - ./ops/otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4319:4318"
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["observability"]
+    depends_on:
+      prometheus:
+        condition: service_started
+      jaeger:
+        condition: service_started
+      alertmanager:
+        condition: service_started
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./ops/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./ops/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+
+  alert-receiver:
+    build:
+      context: .
+      dockerfile: ops/alert-receiver/Dockerfile
+    profiles: ["observability"]
+    ports:
+      - "8094:8080"
 
   mercure:
     image: dunglas/mercure

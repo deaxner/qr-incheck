@@ -3,6 +3,7 @@
 namespace App\Employees\Application;
 
 use App\Entity\Employee;
+use App\Employees\Dto\EmployeeOverviewView;
 use App\Repository\EmployeeRepository;
 use App\Repository\TimeEntryRepository;
 
@@ -15,7 +16,7 @@ class EmployeeOverviewService
     }
 
     /**
-     * @return list<array{id:int,name:string,qrCode:string,status:string,statusLabel:string,lastActionAt:?string}>
+     * @return list<EmployeeOverviewView>
      */
     public function getOverview(): array
     {
@@ -36,10 +37,7 @@ class EmployeeOverviewService
         return $overview;
     }
 
-    /**
-     * @return array{id:int,name:string,qrCode:string,status:string,statusLabel:string,lastActionAt:?string,profile:array{department:string,employmentType:string,location:string}}
-     */
-    public function getOverviewForEmployee(Employee $employee): array
+    public function getOverviewForEmployee(Employee $employee): EmployeeOverviewView
     {
         return $this->buildOverviewEntry(
             $employee,
@@ -48,7 +46,7 @@ class EmployeeOverviewService
         );
     }
 
-    private function buildOverviewEntry(Employee $employee, ?\App\Entity\TimeEntry $openEntry, ?\App\Entity\TimeEntry $latestEntry): array
+    private function buildOverviewEntry(Employee $employee, ?\App\Entity\TimeEntry $openEntry, ?\App\Entity\TimeEntry $latestEntry): EmployeeOverviewView
     {
         $status = $openEntry ? 'checked_in' : 'checked_out';
         $lastActionAt = null;
@@ -61,18 +59,11 @@ class EmployeeOverviewService
             $lastActionAt = $latestEntry->getCheckInAt()->format('Y-m-d H:i:s T');
         }
 
-        return [
-            'id' => $employee->getId(),
-            'name' => $employee->getName(),
-            'qrCode' => $employee->getQrCode(),
-            'status' => $status,
-            'statusLabel' => 'checked_in' === $status ? 'Ingecheckt' : 'Uitgecheckt',
-            'lastActionAt' => $lastActionAt,
-            'profile' => [
-                'department' => $employee->getDepartment(),
-                'employmentType' => $employee->getEmploymentType(),
-                'location' => $employee->getLocation(),
-            ],
-        ];
+        return EmployeeOverviewView::fromEmployee(
+            $employee,
+            $status,
+            'checked_in' === $status ? 'Ingecheckt' : 'Uitgecheckt',
+            $lastActionAt,
+        );
     }
 }

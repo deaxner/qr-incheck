@@ -2,6 +2,20 @@
 
 Compacte demo-opdracht voor QR-gebaseerde check-in en check-out met `Symfony`, een opgesplitste `React` frontend-monorepo, `MySQL`, `PHP 8.5` en `Docker`.
 
+Compact demo assignment for QR-based check-in and check-out built with `Symfony`, a split `React` frontend monorepo, `MySQL`, `PHP 8.5`, and `Docker`.
+
+Deze repository documenteert dezelfde applicatie volledig in twee talen.
+This repository fully documents the same application in two languages.
+
+## Documentatie
+
+- Nederlands:
+  - Overzicht: [docs/README.nl.md](./docs/README.nl.md)
+  - Applicatiegids: [docs/application.nl.md](./docs/application.nl.md)
+- English:
+  - Index: [docs/README.en.md](./docs/README.en.md)
+  - Application guide: [docs/application.en.md](./docs/application.en.md)
+
 Het doel van deze repo is nadrukkelijk niet om een volledige workforce-oplossing neer te zetten. Dit is een afgebakende demo-opdracht waarin ik in beperkte tijd laat zien hoe ik een geloofwaardige verticale slice opzet, keuzes onderbouw en scope bewust klein houd.
 
 ## Installatie
@@ -36,6 +50,12 @@ Geen extra setup nodig.
 
 Bij de eerste start voert de backend automatisch migraties uit en seedt hij demo-data als de database nog leeg is.
 
+Voor de volledige observability stack:
+
+```bash
+docker compose --profile observability up --build
+```
+
 ### Toegang
 
 - Scanner App: `http://localhost:8081`
@@ -69,8 +89,9 @@ De medewerker gebruikt de Employee App voor de eigen badge en huidige inchecksta
 - Device-token beveiligde scannerflow met rate limiting per device
 - Live updates via Mercure in admin- en employee-app
 - Admin console met live activity feed voor scans en badgevernieuwing
+- Dedicated admin-activiteitstopic voor een realtime operations wall
 - Kleine beheerflow voor badge-rotatie
-- Gerichte tests op kernlogica en kritieke UI/API-flow
+- Gerichte tests op kernlogica, kritieke UI/API-flow en contract-/operability-basics
 
 ## Architectuurkeuzes
 
@@ -100,6 +121,7 @@ De focus ligt op denken en structureren, niet op infrastructuurcomplexiteit.
 - `backend/`: Symfony API, domeinlogica, entities, tests, migrations
 - `frontend/`: npm workspace met `scanner-app`, `admin-app`, `employee-app` en gedeelde frontend-code
 - `compose.yaml`: containers voor scanner, admin, employee, backend, Mercure en database
+- `ops/`: Prometheus, Alertmanager, OTel Collector, Grafana en smoke-test artefacten
 - `docs/adr/`: vastgelegde architectuurbesluiten
 - `memory-bank/`: ontwerpprincipes, context en v2-doelarchitectuur
 
@@ -132,6 +154,10 @@ De kern van die richting:
 - `GET /api/employees`: teamoverzicht
 - `GET /api/employees/{id}/history`: historie
 - `POST /api/employees/{id}/regenerate-qr`: badge-rotatie
+- `GET /healthz`: machine-leesbare readiness check met dependencystatus en `requestId`
+- `GET /metrics`: Prometheus-achtige metrics-export voor backend-signalen
+
+Volledige contractbeschrijving staat in [docs/api/contracts.md](./docs/api/contracts.md).
 
 ## Demo-codes
 
@@ -139,19 +165,16 @@ De kern van die richting:
 - `BOB-DEMO-002`
 - `CHARLIE-DEMO-003`
 
-## Waarom de `.env` Bewust Is Geexposed
+## Omgevingsconfiguratie
 
-De `.env` is onderdeel van de repository om het project direct reproduceerbaar te maken zonder extra configuratie.
+De repository commit geen actieve backend-`.env` bestanden meer.
 
-Dit maakt het mogelijk om:
+Voor lokaal werken buiten Docker:
 
-- De end-to-end flow direct te testen
-- De interactie tussen frontend en backend te begrijpen
-- Kritieke UI/API-flows te valideren zonder setup-frictie
+- gebruik [backend/.env.example](./backend/.env.example) als sjabloon
+- zet je eigen overrides in `backend/.env.local`
 
-De waarden bevatten uitsluitend dummy data en lokale configuratie.
-
-In productie zou dit worden vervangen door secure secrets management.
+De Docker Compose stack levert de benodigde backend-omgeving al via `compose.yaml`, dus voor de standaard demo-flow is geen extra `.env` setup nodig.
 
 ## Bewuste keuzes
 
@@ -162,9 +185,43 @@ In productie zou dit worden vervangen door secure secrets management.
 - Mercure voor zichtbare realtime updates zonder custom websocket-infrastructuur
 - Demo-data wordt automatisch gezaaid bij een lege database om de app direct bruikbaar te maken
 
-## Richting productie
+## Production Baseline
 
-- Autorisatie en rollen verder aanscherpen
-- Clock events koppelen aan echte locaties
-- API-contracten formaliseren
-- Historie en auditability uitbreiden
+Deze repository blijft bewust demo-first, maar bevat nu wel expliciete basismaatregelen die production-discipline aantoonbaar maken:
+
+- formele endpoint-contracten en uniform foutmodel in [docs/api/contracts.md](./docs/api/contracts.md)
+- `X-Request-Id`, `X-Contract-Version` en `X-Response-Time-Ms` op responses
+- `GET /healthz` voor readiness en dependencystatus
+- `GET /metrics` voor telbare operationele signalen
+- gestructureerde operationele events via Monolog-kanalen voor `http`, `security` en `audit`
+- OpenTelemetry traces via OTLP export naar een collector en Jaeger backend
+- Grafana provisioning voor Prometheus, Jaeger en Alertmanager
+- lokale alert delivery via Alertmanager webhook receiver
+- security headers op backend-responses
+- backend healthcheck in Docker Compose
+- voorbeeld Prometheus scrape- en alertconfig in `ops/prometheus/`
+
+Wat nog expliciet buiten de huidige scope valt:
+
+- metrics, tracing, alerting-backends en runbooks op platformniveau
+- migratie- en rollbackstrategie over meerdere onafhankelijke releases
+- formele load-/stress-test rapporten en latency-SLO's
+- secret management, dependency scanning en policy gates buiten demo-config
+
+De huidige production baseline staat uitgewerkt in [docs/operations/production-baseline.md](./docs/operations/production-baseline.md). De technische standaarden en het operating model staan in [docs/operations/engineering-standards.md](./docs/operations/engineering-standards.md) en [docs/operations/operating-model.md](./docs/operations/operating-model.md). De bredere vervolgrichting blijft beschreven in [ADR 0003](./docs/adr/0003-demo-scope-en-production-readiness-roadmap.md).
+
+## CI Gates
+
+De repository bevat een GitHub Actions pipeline in [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) met deze minimale gates:
+
+- backend dependency/config-validatie
+- Symfony container- en YAML-lint
+- Doctrine mapping-validatie
+- MySQL migration smoke-test
+- backend test-suite
+- frontend workspace tests
+- frontend productiebuilds
+- docker compose-config validatie
+- deployed smoke-test tegen draaiende containers met health, metrics, login, scan en trace-export checks
+
+Een compacte release- en rollbackvolgorde staat in [docs/operations/release-runbook.md](./docs/operations/release-runbook.md).

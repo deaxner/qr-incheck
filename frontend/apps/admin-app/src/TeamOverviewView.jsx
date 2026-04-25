@@ -1,5 +1,4 @@
 import React from 'react';
-import { formatDateTime } from '../../../shared/utils/dateTime';
 
 export function TeamOverviewView({
   employees,
@@ -8,7 +7,6 @@ export function TeamOverviewView({
   isRefreshing,
   lastRefreshedLabel,
   liveModeLabel,
-  recentActivity,
   regeneratingId,
   selectedEmployeeId,
   onRefresh,
@@ -96,38 +94,6 @@ export function TeamOverviewView({
           ))}
         </div>
 
-        <section className="activity-panel">
-          <div className="panel-heading activity-panel-heading">
-            <div>
-              <h3>Live activity</h3>
-              <p className="panel-copy">Laat in realtime zien wat er binnenkomt vanuit scans en badgebeheer.</p>
-            </div>
-          </div>
-
-          {0 === recentActivity.length ? (
-            <div className="activity-empty">Nog geen realtime activiteit ontvangen.</div>
-          ) : (
-            <div className="activity-feed">
-              {recentActivity.map((activity) => (
-                <article className="activity-item" key={activity.id}>
-                  <div className={`activity-icon activity-icon-${activity.type}`}>
-                    {'checked_in' === activity.type ? 'IN' : ('checked_out' === activity.type ? 'OUT' : 'QR')}
-                  </div>
-                  <div className="activity-copy">
-                    <h4>{activity.label}</h4>
-                    <p>
-                      {activity.employeeName} op {activity.location}
-                      {activity.qrCode ? ` | ${activity.qrCode}` : ''}
-                    </p>
-                  </div>
-                  <div className="activity-meta">
-                    {formatDateTime(activity.timestamp)}
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
       </section>
     </section>
   );

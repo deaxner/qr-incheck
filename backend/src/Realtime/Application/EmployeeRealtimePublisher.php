@@ -38,9 +38,15 @@ class EmployeeRealtimePublisher
         ];
 
         try {
+            $jsonPayload = json_encode($payload, JSON_THROW_ON_ERROR);
+
             $this->hub->publish(new Update(
                 sprintf('/employees/%d', $employee->getId()),
-                json_encode($payload, JSON_THROW_ON_ERROR)
+                $jsonPayload
+            ));
+            $this->hub->publish(new Update(
+                '/admin/activity',
+                $jsonPayload
             ));
         } catch (\Throwable) {
             // Realtime delivery should not break the primary clocking or badge workflow.

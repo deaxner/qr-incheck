@@ -6,9 +6,14 @@ use App\Auth\Application\AuthContext;
 use App\Employees\Application\EmployeeHistoryService;
 use App\Employees\Application\EmployeeOverviewService;
 use App\Employees\Application\EmployeeSelfStatusService;
+use App\Employees\Dto\EmployeeIdentityView;
 use App\Employees\Application\QrCodeRotationService;
 use App\Repository\EmployeeRepository;
 use App\Shared\Http\ApiAccess;
+use App\Shared\Http\ApiProblemResponseFactory;
+use App\Shared\Http\OperationalEventLogger;
+use App\Shared\Http\RequestContext;
+use App\Shared\Observability\MetricsCollector;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
@@ -16,6 +21,13 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/employees')]
 class EmployeeController extends AbstractController
 {
+    public function __construct(
+        private readonly ApiProblemResponseFactory $apiProblemResponseFactory,
+        private readonly OperationalEventLogger $operationalEventLogger,
+        private readonly MetricsCollector $metricsCollector,
+    ) {
+    }
+
     #[Route('', name: 'api_employees_index', methods: ['GET'])]
     public function index(
         \Symfony\Component\HttpFoundation\Request $request,
@@ -29,7 +41,10 @@ class EmployeeController extends AbstractController
             return $accessResult;
         }
 
-        return $this->json($employeeOverviewService->getOverview());
+        return $this->json(array_map(
+            static fn ($view): array => $view->toArray(),
+            $employeeOverviewService->getOverview(),
+        ));
     }
 
     #[Route('/me/status', name: 'api_employees_me_status', methods: ['GET'])]
@@ -43,13 +58,15 @@ class EmployeeController extends AbstractController
         $employee = $employeeRepository->find($user->employeeId);
 
         if (!$employee) {
-            return $this->json([
-                'code' => 'employee_not_found',
-                'message' => 'Medewerker niet gevonden.',
-            ], 404);
+            return $this->apiProblemResponseFactory->create(
+                $request,
+                'employee_not_found',
+                'Medewerker niet gevonden.',
+                404,
+            );
         }
 
-        return $this->json($employeeSelfStatusService->getForEmployee($employee));
+        return $this->json($employeeSelfStatusService->getForEmployee($employee)->toArray());
     }
 
     #[Route('/me/history', name: 'api_employees_me_history', methods: ['GET'])]
@@ -63,13 +80,15 @@ class EmployeeController extends AbstractController
         $employee = $employeeRepository->find($user->employeeId);
 
         if (!$employee) {
-            return $this->json([
-                'code' => 'employee_not_found',
-                'message' => 'Medewerker niet gevonden.',
-            ], 404);
+            return $this->apiProblemResponseFactory->create(
+                $request,
+                'employee_not_found',
+                'Medewerker niet gevonden.',
+                404,
+            );
         }
 
-        return $this->json($employeeHistoryService->getForEmployee($employee));
+        return $this->json($employeeHistoryService->getForEmployee($employee)->toArray());
     }
 
     #[Route('/{id}/history', name: 'api_employees_history', methods: ['GET'])]
@@ -89,13 +108,15 @@ class EmployeeController extends AbstractController
         $employee = $employeeRepository->find($id);
 
         if (!$employee) {
-            return $this->json([
-                'code' => 'employee_not_found',
-                'message' => 'Medewerker niet gevonden.',
-            ], 404);
+            return $this->apiProblemResponseFactory->create(
+                $request,
+                'employee_not_found',
+                'Medewerker niet gevonden.',
+                404,
+            );
         }
 
-        return $this->json($employeeHistoryService->getForEmployee($employee));
+        return $this->json($employeeHistoryService->getForEmployee($employee)->toArray());
     }
 
     #[Route('/{id}/regenerate-qr', name: 'api_employees_regenerate_qr', methods: ['POST'])]
@@ -115,25 +136,26 @@ class EmployeeController extends AbstractController
         $employee = $employeeRepository->find($id);
 
         if (!$employee) {
-            return $this->json([
-                'code' => 'employee_not_found',
-                'message' => 'Medewerker niet gevonden.',
-            ], 404);
+            return $this->apiProblemResponseFactory->create(
+                $request,
+                'employee_not_found',
+                'Medewerker niet gevonden.',
+                404,
+            );
         }
 
         $employee = $qrCodeRotationService->rotate($employee);
 
+        $this->operationalEventLogger->logAudit('employee.badge.rotated', [
+            'requestId' => RequestContext::getRequestId($request),
+            'employeeId' => $employee->getId(),
+            'employeeName' => $employee->getName(),
+            'newQrCode' => $employee->getQrCode(),
+        ]);
+        $this->metricsCollector->incrementCounter('qr_badge_rotations_total', ['outcome' => 'success']);
+
         return $this->json([
-            'employee' => [
-                'id' => $employee->getId(),
-                'name' => $employee->getName(),
-                'qrCode' => $employee->getQrCode(),
-                'profile' => [
-                    'department' => $employee->getDepartment(),
-                    'employmentType' => $employee->getEmploymentType(),
-                    'location' => $employee->getLocation(),
-                ],
-            ],
+            'employee' => EmployeeIdentityView::fromEmployee($employee)->toArray(),
         ]);
     }
 }

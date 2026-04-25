@@ -1,5 +1,14 @@
 const MERCURE_PUBLIC_URL = import.meta.env.VITE_MERCURE_PUBLIC_URL ?? '/.well-known/mercure';
 
+function normalizeTopics(topics) {
+  return [...new Set(
+    topics
+      .filter(Boolean)
+      .map((topic) => String(topic).trim())
+      .filter(Boolean)
+  )].sort();
+}
+
 function buildMercureUrl(topics) {
   const url = new URL(MERCURE_PUBLIC_URL, window.location.origin);
 
@@ -11,7 +20,7 @@ function buildMercureUrl(topics) {
 }
 
 export function subscribeToTopics(topics, { onMessage, onError } = {}) {
-  const normalizedTopics = topics.filter(Boolean);
+  const normalizedTopics = normalizeTopics(topics);
 
   if (0 === normalizedTopics.length || 'undefined' === typeof window.EventSource) {
     return () => {};

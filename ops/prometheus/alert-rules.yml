@@ -1,0 +1,32 @@
+groups:
+  - name: qr-incheck-backend
+    rules:
+      - alert: QrIncheckBackendDown
+        expr: up{job="qr-incheck-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: qr-incheck-backend
+        annotations:
+          summary: QR-Incheck backend is unreachable
+          description: Prometheus cannot scrape the backend metrics endpoint for more than one minute.
+
+      - alert: QrIncheckScannerRateLimited
+        expr: increase(qr_scan_requests_total{outcome="rate_limited"}[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: qr-incheck-backend
+        annotations:
+          summary: Scanner traffic is being throttled
+          description: More than five scan requests were rate limited over the last five minutes.
+
+      - alert: QrIncheckInvalidLoginBurst
+        expr: increase(qr_auth_login_attempts_total{outcome="invalid_credentials"}[10m]) > 10
+        for: 10m
+        labels:
+          severity: warning
+          service: qr-incheck-backend
+        annotations:
+          summary: Invalid login burst detected
+          description: More than ten invalid login attempts were observed in the last ten minutes.

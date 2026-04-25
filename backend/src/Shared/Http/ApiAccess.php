@@ -11,6 +11,7 @@ class ApiAccess
 {
     public function __construct(
         private readonly AuthContext $authContext,
+        private readonly ApiProblemResponseFactory $apiProblemResponseFactory,
     ) {
     }
 
@@ -23,7 +24,7 @@ class ApiAccess
                 throw $exception;
             }
 
-            return $this->forbidden($message);
+            return $this->forbiddenForRequest($request, $message);
         }
     }
 
@@ -33,5 +34,10 @@ class ApiAccess
             'code' => 'forbidden',
             'message' => $message,
         ], 403);
+    }
+
+    public function forbiddenForRequest(Request $request, string $message): JsonResponse
+    {
+        return $this->apiProblemResponseFactory->create($request, 'forbidden', $message, 403);
     }
 }

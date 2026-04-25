@@ -22,9 +22,14 @@ class ApiControllerTest extends WebTestCase
         self::bootKernel();
         $this->entityManager = static::getContainer()->get(EntityManagerInterface::class);
         $rateLimiterCache = static::getContainer()->get('cache.rate_limiter');
+        $appCache = static::getContainer()->get('cache.app');
 
         if ($rateLimiterCache instanceof CacheItemPoolInterface) {
             $rateLimiterCache->clear();
+        }
+
+        if ($appCache instanceof CacheItemPoolInterface) {
+            $appCache->clear();
         }
 
         $this->resetDatabase($this->entityManager);
@@ -47,6 +52,9 @@ class ApiControllerTest extends WebTestCase
         self::assertArrayNotHasKey('authChoice', $payload);
         self::assertSame('bob.admin@timesignal.demo', $payload['user']['email']);
         self::assertSame('admin', $payload['user']['role']);
+        self::assertNotEmpty($client->getResponse()->headers->get('X-Request-Id'));
+        self::assertSame('2026-04', $client->getResponse()->headers->get('X-Contract-Version'));
+        self::assertNotEmpty($client->getResponse()->headers->get('X-Response-Time-Ms'));
     }
 
     public function testLoginRejectsInvalidCredentials(): void
@@ -60,7 +68,22 @@ class ApiControllerTest extends WebTestCase
         ], JSON_THROW_ON_ERROR));
 
         self::assertResponseStatusCodeSame(401);
-        self::assertSame('invalid_credentials', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('invalid_credentials', $payload['code']);
+        self::assertSame($client->getResponse()->headers->get('X-Request-Id'), $payload['requestId']);
+    }
+
+    public function testLoginRejectsMalformedJson(): void
+    {
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        $client->request('POST', '/api/auth/login', server: ['CONTENT_TYPE' => 'application/json'], content: '{"email":');
+
+        self::assertResponseStatusCodeSame(400);
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('invalid_request', $payload['code']);
+        self::assertArrayHasKey('requestId', $payload);
     }
 
     public function testProtectedEndpointRejectsMissingToken(): void
@@ -71,7 +94,9 @@ class ApiControllerTest extends WebTestCase
         $client->request('GET', '/api/employees');
 
         self::assertResponseStatusCodeSame(401);
-        self::assertSame('unauthorized', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('unauthorized', $payload['code']);
+        self::assertSame($client->getResponse()->headers->get('X-Request-Id'), $payload['requestId']);
     }
 
     public function testAuthenticatedUserEndpointReturnsCurrentUser(): void
@@ -90,6 +115,7 @@ class ApiControllerTest extends WebTestCase
         self::assertSame('bob.admin@timesignal.demo', $payload['user']['email']);
         self::assertSame('Bob de Vries', $payload['employee']['name']);
         self::assertSame('North Lobby', $payload['employee']['profile']['location']);
+        self::assertSame('2026-04', $client->getResponse()->headers->get('X-Contract-Version'));
     }
 
     public function testEmployeeUserCannotViewTeamOverview(): void
@@ -203,7 +229,9 @@ class ApiControllerTest extends WebTestCase
         ], content: '{"code":');
 
         self::assertResponseStatusCodeSame(400);
-        self::assertSame('invalid_request', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('invalid_request', $payload['code']);
+        self::assertSame($client->getResponse()->headers->get('X-Request-Id'), $payload['requestId']);
     }
 
     public function testScanEndpointRejectsBlankCode(): void
@@ -242,7 +270,9 @@ class ApiControllerTest extends WebTestCase
         $this->requestScan($client, 'ALICE-DEMO-001');
 
         self::assertResponseStatusCodeSame(429);
-        self::assertSame('rate_limited', json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR)['code']);
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('rate_limited', $payload['code']);
+        self::assertSame($client->getResponse()->headers->get('X-Request-Id'), $payload['requestId']);
     }
 
     public function testRegenerateQrCodeEndpointReturnsNewCode(): void
@@ -304,6 +334,72 @@ class ApiControllerTest extends WebTestCase
         self::assertSame('Alice Janssen', $payload['employee']['name']);
         self::assertCount(1, $payload['entries']);
         self::assertSame('checked_in', $payload['entries'][0]['action']);
+    }
+
+    public function testHealthEndpointReturnsOperationalStatus(): void
+    {
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        $client->request('GET', '/healthz');
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('ok', $payload['status']);
+        self::assertSame('up', $payload['dependencies']['database']['status']);
+        self::assertArrayHasKey('requestId', $payload);
+    }
+
+    public function testResponsesExposeSecurityHeaders(): void
+    {
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        $client->request('GET', '/healthz');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
+        self::assertSame('DENY', $client->getResponse()->headers->get('X-Frame-Options'));
+        self::assertSame('no-referrer', $client->getResponse()->headers->get('Referrer-Policy'));
+        self::assertNotEmpty($client->getResponse()->headers->get('Content-Security-Policy'));
+        self::assertSame('2026-04', $client->getResponse()->headers->get('X-Contract-Version'));
+        self::assertGreaterThanOrEqual(0, (int) $client->getResponse()->headers->get('X-Response-Time-Ms'));
+    }
+
+    public function testMetricsEndpointExportsOperationalCounters(): void
+    {
+        $this->createEmployee('Alice', 'ALICE-DEMO-001');
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        $client->request('POST', '/api/auth/login', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
+            'email' => 'bob.admin@timesignal.demo',
+            'password' => 'Admin123!',
+        ], JSON_THROW_ON_ERROR));
+        $this->requestScan($client, 'ALICE-DEMO-001');
+        $client->request('GET', '/metrics');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('# TYPE qr_auth_login_attempts_total counter', $client->getResponse()->getContent());
+        self::assertStringContainsString('qr_auth_login_attempts_total{outcome="success"} 1', $client->getResponse()->getContent());
+        self::assertStringContainsString('qr_scan_requests_total{outcome="checked_in"} 1', $client->getResponse()->getContent());
+        self::assertStringContainsString('# TYPE qr_http_requests_total counter', $client->getResponse()->getContent());
+    }
+
+    public function testLoginContractShapeRemainsStable(): void
+    {
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+
+        $client->request('POST', '/api/auth/login', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
+            'email' => 'bob.admin@timesignal.demo',
+            'password' => 'Admin123!',
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode($client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame(['token', 'user'], array_keys($payload));
+        self::assertSame(['id', 'email', 'name', 'role', 'employeeId'], array_keys($payload['user']));
     }
 
     private function createEmployee(

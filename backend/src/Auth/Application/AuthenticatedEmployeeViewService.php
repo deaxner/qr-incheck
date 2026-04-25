@@ -2,7 +2,10 @@
 
 namespace App\Auth\Application;
 
+use App\Auth\Dto\AuthenticatedSessionView;
+use App\Auth\Dto\AuthUserView;
 use App\Auth\Domain\AuthUser;
+use App\Employees\Dto\EmployeeIdentityView;
 use App\Repository\EmployeeRepository;
 
 class AuthenticatedEmployeeViewService
@@ -12,31 +15,13 @@ class AuthenticatedEmployeeViewService
     ) {
     }
 
-    /**
-     * @return array{user:array{id:string,email:string,name:string,role:string,employeeId:int},employee:?array<string,mixed>}
-     */
-    public function build(AuthUser $user): array
+    public function build(AuthUser $user): AuthenticatedSessionView
     {
         $employee = $this->employeeRepository->find($user->employeeId);
 
-        return [
-            'user' => [
-                'id' => $user->id,
-                'email' => $user->email,
-                'name' => $user->name,
-                'role' => $user->role,
-                'employeeId' => $user->employeeId,
-            ],
-            'employee' => $employee ? [
-                'id' => $employee->getId(),
-                'name' => $employee->getName(),
-                'qrCode' => $employee->getQrCode(),
-                'profile' => [
-                    'department' => $employee->getDepartment(),
-                    'employmentType' => $employee->getEmploymentType(),
-                    'location' => $employee->getLocation(),
-                ],
-            ] : null,
-        ];
+        return new AuthenticatedSessionView(
+            AuthUserView::fromAuthUser($user),
+            $employee ? EmployeeIdentityView::fromEmployee($employee) : null,
+        );
     }
 }

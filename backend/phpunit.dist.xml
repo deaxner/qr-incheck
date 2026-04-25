@@ -14,7 +14,17 @@
         <ini name="display_errors" value="1" />
         <ini name="error_reporting" value="-1" />
         <server name="APP_ENV" value="test" force="true" />
+        <server name="APP_SECRET" value="test-secret" force="true" />
+        <server name="APP_TIMEZONE" value="Europe/Amsterdam" force="true" />
+        <server name="APP_SCANNER_DEVICE_TOKEN" value="scanner-demo-token" force="true" />
+        <server name="APP_REALTIME_ENABLED" value="0" force="true" />
         <server name="KERNEL_CLASS" value="App\Kernel" force="true" />
+        <server name="APP_OPERATIONAL_LOGGING_ENABLED" value="0" force="true" />
+        <server name="APP_TRACING_ENABLED" value="0" force="true" />
+        <server name="MERCURE_URL" value="http://localhost/.well-known/mercure" force="true" />
+        <server name="MERCURE_PUBLIC_URL" value="http://localhost/.well-known/mercure" force="true" />
+        <server name="MERCURE_JWT_SECRET" value="test-mercure-secret" force="true" />
+        <server name="DATABASE_URL" value="sqlite:///%kernel.project_dir%/var/app_test.db" force="true" />
         <server name="SHELL_VERBOSITY" value="-1" />
     </php>
 

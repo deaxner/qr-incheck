@@ -1,11 +1,11 @@
 # V2 Target Architecture
 
-- Status: Proposed
-- Datum: 2026-04-21
+- Status: Implemented direction
+- Datum: 2026-04-24
 
 ## 1. Target architecture
 
-De repository beweegt van een frontend-applicatie naar drie aparte frontend-applicaties die allemaal dezelfde Symfony backend gebruiken.
+De repository is geëvolueerd van een enkele frontend-applicatie naar drie aparte frontend-applicaties die allemaal dezelfde Symfony backend gebruiken.
 
 Definitieve systeemschets:
 
@@ -33,7 +33,7 @@ Frontends tonen data en triggeren acties, maar bepalen geen businessuitkomst.
 
 ### Strict separation of apps
 
-Iedere app heeft precies een verantwoordelijkheid:
+Iedere app heeft precies een primaire verantwoordelijkheid:
 
 - `Scanner App`: QR scannen en klokevents registreren
 - `Admin App`: beheer en operationeel overzicht
@@ -50,7 +50,7 @@ Alle frontend-apps delen minimaal:
 
 ## 3. Frontend structure
 
-Aanbevolen monorepo-structuur:
+Gerealiseerde monorepo-structuur:
 
 ```text
 frontend/
@@ -67,15 +67,15 @@ frontend/
 
 Gevolgen:
 
-- de huidige frontend wordt opgesplitst in app-specifieke entry points
+- de oorspronkelijke frontend is opgesplitst in app-specifieke entry points
 - gedeelde code mag niet gekopieerd worden tussen apps
 - businesslogica blijft backend-owned; frontend-sharing gaat over contracten, presentatie en utilities
 
 ## 4. Backend changes
 
-Het grootste deel van de backend ondersteunt deze richting al.
+De backend ondersteunt deze richting inmiddels inhoudelijk.
 
-### Bestaande endpoints die blijven
+### Kernendpoints
 
 - `POST /api/auth/login`
 - `GET /api/auth/me`
@@ -84,7 +84,7 @@ Het grootste deel van de backend ondersteunt deze richting al.
 - `GET /api/employees/{id}/history`
 - `POST /api/employees/{id}/regenerate-qr`
 
-### Nieuwe endpoints
+### Self-service endpoints
 
 Employee self status:
 
@@ -99,13 +99,11 @@ Respons:
 }
 ```
 
-Optionele employee history:
-
 - `GET /api/employees/me/history`
 
 ### Device protection for scanner
 
-Aanbevolen uitbreiding op scanverkeer:
+Gerealiseerde uitbreiding op scanverkeer:
 
 - `POST /api/scan`
 - header `X-DEVICE-TOKEN`
@@ -118,7 +116,7 @@ Dit maakt een kiosk/scanner-client onderscheidbaar van admin- en employee-verkee
 - `Employee`: alleen eigen data onder `/me/*`
 - `Scanner`: alleen toegang tot `/api/scan`
 
-Deze regels moeten hard worden afgedwongen in Symfony, bijvoorbeeld via access-control, dedicated authenticatie voor devices en waar nodig voters of application guards.
+Deze regels worden hard afgedwongen in Symfony via JWT-authenticatie voor users, device-token validatie voor scanners en endpoint-specifieke toegangscontrole.
 
 ## 5. Scanner App
 
@@ -180,13 +178,13 @@ Volledige beheer- en operationele dashboard-app.
 - badge regeneratie
 - statusmonitoring
 
-### Changes from current app
+### Changes from the original single app
 
-Verwijderen:
+Niet meer onderdeel van deze app:
 
 - scanninglogica
 
-Behouden:
+Wel onderdeel van deze app:
 
 - administratieve features uit de huidige app
 
@@ -245,7 +243,7 @@ Passende library:
 
 ## 8. Shared layer
 
-Dit is verplicht voor onderhoudbaarheid.
+Dit is verplicht voor onderhoudbaarheid en consistent gedrag.
 
 ### API client example
 
@@ -304,45 +302,20 @@ services:
 - Employee App: `http://localhost:8084`
 - Backend: `http://localhost:8082`
 
-## 11. Implementation phases
+## 11. Implementation outcome
 
-### Phase 1: Frontend split
+De v2-richting heeft in de huidige repo concreet geleid tot:
 
-- huidige React-app extraheren naar `admin-app`
-- shared folder opzetten
-
-### Phase 2: Scanner app
-
-- camera-integratie
-- QR scanning
-- API-integratie met `/api/scan`
-
-### Phase 3: Employee app
-
-- authenticatie
-- QR-code weergave
-- statusendpoint-integratie
-
-### Phase 4: Backend extensions
-
-- `/me/status` endpoint toevoegen
-- optioneel `/me/history`
-- device token validatie voor scanner
-
-### Phase 5: Docker integration
-
-- drie frontend-containers toevoegen
-- volledige startup lokaal valideren
-
-### Phase 6: Security and hardening
-
-- role enforcement in Symfony
-- rate limiting op scanendpoint
-- strengere inputvalidatie
+- drie frontend-apps onder `frontend/apps/`
+- een gedeelde laag onder `frontend/shared/`
+- self-service endpoints onder `/api/employees/me/*`
+- device-token beveiliging op `/api/scan`
+- rate limiting op scannerverkeer
+- Mercure-gedreven live updates voor admin- en employee-schermen
 
 ## 12. Design outcomes
 
-Na deze upgrade moet de repository deze uitkomst ondersteunen:
+Met deze upgrade ondersteunt de repository deze uitkomst:
 
 - duidelijke scheiding van verantwoordelijkheden over drie clients
 - backend-gedreven businesslogica
@@ -350,12 +323,11 @@ Na deze upgrade moet de repository deze uitkomst ondersteunen:
 - realistische multi-client systeemopzet
 - productie-achtig ontwerp, terwijl de scope een demo blijft
 
-## Concrete next steps
+## Verdere verfijning
 
-Als implementatierichting voor v2 betekent dit:
+Als vervolgstap na v2 ligt de nadruk eerder op aanscherping dan op structuurwissel:
 
-1. de huidige frontend omvormen tot `admin-app`
-2. een gedeelde `frontend/shared/` laag formaliseren
-3. scanner- en employee-app als nieuwe entry points toevoegen
-4. Symfony uitbreiden met `/api/employees/me/status` en optioneel `/me/history`
-5. scanverkeer scheiden van userverkeer via een device-token model
+1. realtime topics en eventcontracten verder formaliseren
+2. autorisatie- en auditabilitygrenzen uitbreiden
+3. frontend-contracten waar nodig explicieter typeren of versioneren
+4. scannerdevice-beheer verder uitwerken als de demo naar productieachtig gebruik beweegt

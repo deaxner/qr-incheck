@@ -3,6 +3,7 @@
 namespace App\Employees\Application;
 
 use App\Entity\Employee;
+use App\Employees\Dto\EmployeeSelfStatusView;
 use App\Repository\TimeEntryRepository;
 
 class EmployeeSelfStatusService
@@ -12,10 +13,7 @@ class EmployeeSelfStatusService
     ) {
     }
 
-    /**
-     * @return array{status:string,lastClock:?string}
-     */
-    public function getForEmployee(Employee $employee): array
+    public function getForEmployee(Employee $employee): EmployeeSelfStatusView
     {
         $openEntry = $this->timeEntryRepository->findOpenEntryForEmployee($employee);
         $latestEntry = $this->timeEntryRepository->findLatestEntriesIndexedByEmployeeIds([$employee->getId()])[$employee->getId()] ?? null;
@@ -29,9 +27,9 @@ class EmployeeSelfStatusService
             $lastClock = $latestEntry->getCheckInAt()->format(\DateTimeInterface::ATOM);
         }
 
-        return [
-            'status' => $openEntry ? 'IN' : 'OUT',
-            'lastClock' => $lastClock,
-        ];
+        return new EmployeeSelfStatusView(
+            $openEntry ? 'IN' : 'OUT',
+            $lastClock,
+        );
     }
 }
