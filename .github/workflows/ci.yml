@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend Quality Gates
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: qr_incheck_ci
+          MYSQL_USER: qr_user
+          MYSQL_PASSWORD: qr_password
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: ctype, iconv, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.composer/cache/files
+            backend/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-
+
+      - name: Install backend dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Validate Composer metadata
+        run: composer validate --no-check-publish
+
+      - name: Lint Symfony container
+        run: php bin/console lint:container --env=test
+
+      - name: Lint YAML configuration
+        run: php bin/console lint:yaml config --parse-tags
+
+      - name: Validate Doctrine mapping
+        run: php bin/console doctrine:schema:validate --skip-sync --env=test
+
+      - name: Create migration smoke database
+        env:
+          DATABASE_URL: mysql://qr_user:qr_password@127.0.0.1:3306/qr_incheck_ci?serverVersion=8.0.36&charset=utf8mb4
+        run: php bin/console doctrine:database:create --if-not-exists --env=test
+
+      - name: Run migration smoke test
+        env:
+          DATABASE_URL: mysql://qr_user:qr_password@127.0.0.1:3306/qr_incheck_ci?serverVersion=8.0.36&charset=utf8mb4
+        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test
+
+      - name: Verify migrations are up to date
+        env:
+          DATABASE_URL: mysql://qr_user:qr_password@127.0.0.1:3306/qr_incheck_ci?serverVersion=8.0.36&charset=utf8mb4
+        run: php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration --env=test
+
+      - name: Run backend tests
+        run: php bin/phpunit
+
+  frontend:
+    name: Frontend Quality Gates
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Build frontend workspaces
+        run: npm run build
+
+  infrastructure:
+    name: Infrastructure Sanity Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate docker compose configuration
+        run: docker compose config
+
+  deploy-smoke:
+    name: Deployed Environment Smoke Test
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - frontend
+      - infrastructure
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start deployed stack
+        run: docker compose --profile observability up -d --build db mercure backend otel-collector jaeger
+
+      - name: Run deployed smoke checks
+        shell: pwsh
+        run: ./ops/smoke/deployed-smoke.ps1
+
+      - name: Tear down deployed stack
+        if: always()
+        run: docker compose --profile observability down -v
